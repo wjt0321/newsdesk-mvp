@@ -1,3 +1,4 @@
+use std::fs::OpenOptions;
 use std::net::TcpStream;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
@@ -137,6 +138,15 @@ fn first_matching_sidecar(dir: &std::path::Path) -> Option<PathBuf> {
     None
 }
 
+fn backend_log_file() -> Option<std::fs::File> {
+    let path = std::env::temp_dir().join("newsdesk-backend.log");
+    OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&path)
+        .ok()
+}
+
 fn wait_for_backend() -> bool {
     let deadline = std::time::Instant::now() + BACKEND_START_TIMEOUT;
     while std::time::Instant::now() < deadline {
@@ -157,10 +167,17 @@ fn start_backend(app: &AppHandle) -> Result<(), String> {
     // Prefer packaged sidecar executable (production builds).
     if let Some(sidecar) = find_sidecar_binary(app) {
         eprintln!("Trying sidecar: {:?}", sidecar);
-        match Command::new(&sidecar)
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .spawn()
+        let mut cmd = Command::new(&sidecar);
+        if let Some(log) = backend_log_file() {
+            let log2 = backend_log_file();
+            cmd.stdout(Stdio::from(log));
+            if let Some(log2) = log2 {
+                cmd.stderr(Stdio::from(log2));
+            }
+        } else {
+            cmd.stdout(Stdio::null()).stderr(Stdio::null());
+        }
+        match cmd.spawn()
         {
             Ok(child) => {
                 app.state::<Mutex<Option<BackendProcess>>>()
@@ -201,12 +218,19 @@ fn start_backend(app: &AppHandle) -> Result<(), String> {
         return Err(format!("Backend script not found: {:?}", script));
     }
 
-    let child = Command::new("cmd")
-        .arg("/C")
-        .arg(&script)
-        .current_dir(&backend_dir)
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
+    let mut cmd = Command::new("cmd");
+    cmd.arg("/C").arg(&script).current_dir(&backend_dir);
+    if let Some(log) = backend_log_file() {
+        let log2 = backend_log_file();
+        cmd.stdout(Stdio::from(log));
+        if let Some(log2) = log2 {
+            cmd.stderr(Stdio::from(log2));
+        }
+    } else {
+        cmd.stdout(Stdio::null()).stderr(Stdio::null());
+    }
+
+    let child = cmd
         .spawn()
         .map_err(|e| format!("Failed to start backend: {}", e))?;
 
