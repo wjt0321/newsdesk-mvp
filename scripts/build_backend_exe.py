@@ -57,6 +57,7 @@ if __name__ == "__main__":
         "-m",
         "PyInstaller",
         "--onefile",
+        "--noconsole",
         "--name",
         "newsdesk-backend",
         "--distpath",

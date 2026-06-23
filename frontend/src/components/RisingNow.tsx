@@ -1,6 +1,7 @@
 import type { Story } from "../api/types";
 import { ArrowUpRight, Zap } from "lucide-react";
 import clsx from "clsx";
+import { formatStoryStatus } from "../lib/format";
 
 interface RisingNowProps {
   stories: Story[];
@@ -17,7 +18,7 @@ export function RisingNow({ stories, onStoryClick }: RisingNowProps) {
       <div className="flex items-center gap-2 mb-3">
         <Zap className="w-4 h-4 text-amber" />
         <h2 className="text-sm font-semibold uppercase tracking-wide text-text-secondary">
-          Rising Now
+          正在上升
         </h2>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -46,7 +47,7 @@ export function RisingNow({ stories, onStoryClick }: RisingNowProps) {
               <div className="flex items-center gap-3 mt-1 text-xs text-text-secondary">
                 <span
                   className={clsx(
-                    "font-medium capitalize",
+                    "font-medium",
                     story.status === "new"
                       ? "text-green-700"
                       : story.status === "developing"
@@ -54,9 +55,9 @@ export function RisingNow({ stories, onStoryClick }: RisingNowProps) {
                       : "text-amber-700"
                   )}
                 >
-                  {story.status}
+                  {formatStoryStatus(story.status)}
                 </span>
-                <span>{story.source_count} sources</span>
+                <span>{story.source_count} 来源</span>
                 <span className="flex items-center gap-1 text-amber">
                   <Zap className="w-3 h-3" />
                   {story.heat_score.toFixed(1)}

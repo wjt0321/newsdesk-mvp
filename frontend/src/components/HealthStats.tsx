@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 import { Activity, Database, Layers, AlertTriangle } from "lucide-react";
 import { listSourceHealth } from "../api/sources";
 
@@ -29,23 +30,23 @@ export function HealthStats() {
 
   const items = [
     {
-      label: "Source health",
-      value: enabled.length > 0 ? `${healthy}/${enabled.length} healthy` : "No sources",
-      sub: problemCount > 0 ? `${problemCount} need attention` : "All good",
+      label: "来源健康",
+      value: enabled.length > 0 ? `${healthy}/${enabled.length} 健康` : "无来源",
+      sub: problemCount > 0 ? `${problemCount} 个需要关注` : "正常",
       icon: Activity,
       tone: problemCount > 0 ? "text-amber-600" : "text-emerald-600",
     },
     {
-      label: "Fetched articles",
+      label: "已抓取文章",
       value: totalArticles.toString(),
-      sub: "Last 24 hours",
+      sub: "最近24小时",
       icon: Database,
       tone: "text-blue-600",
     },
     {
-      label: "New stories",
+      label: "新报道",
       value: totalStories.toString(),
-      sub: "Last 24 hours",
+      sub: "最近24小时",
       icon: Layers,
       tone: "text-violet-600",
     },
@@ -58,12 +59,12 @@ export function HealthStats() {
           <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
           <div className="text-sm">
             <p className="font-medium text-amber-800">
-              {problemCount} source{problemCount > 1 ? "s" : ""} need attention
+              {problemCount} 个来源需要关注
             </p>
             <p className="text-amber-700">{problems.map((s) => s.name).join(", ")}</p>
-            <a href="#/sources" className="text-amber-800 underline hover:text-amber-900">
-              Go to Sources →
-            </a>
+            <Link to="/sources" className="text-amber-800 underline hover:text-amber-900">
+              前往来源管理 →
+            </Link>
           </div>
         </div>
       )}
@@ -81,7 +82,7 @@ export function HealthStats() {
               <p className="text-xs text-text-secondary">{item.label}</p>
               <p className="text-lg font-semibold text-text-primary">{item.value}</p>
               <p className="text-xs text-text-secondary flex items-center gap-1">
-                {problemCount > 0 && item.label === "Source health" && (
+                {problemCount > 0 && item.label === "来源健康" && (
                   <AlertTriangle className="w-3 h-3 text-amber-500" />
                 )}
                 {item.sub}

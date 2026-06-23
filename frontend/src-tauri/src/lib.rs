@@ -7,7 +7,13 @@ use std::sync::Mutex;
 use std::thread;
 use std::time::Duration;
 use tauri::{AppHandle, Manager};
+use tauri::tray::{MouseButton, MouseButtonState, TrayIconEvent};
 use tauri_plugin_notification::NotificationExt;
+
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
+
+const CREATE_NO_WINDOW: u32 = 0x08000000;
 
 const BACKEND_URL: &str = "http://127.0.0.1:8000";
 const BACKEND_START_TIMEOUT: Duration = Duration::from_secs(30);
@@ -138,6 +144,13 @@ fn first_matching_sidecar(dir: &std::path::Path) -> Option<PathBuf> {
     None
 }
 
+fn hide_console_window(cmd: &mut Command) {
+    #[cfg(target_os = "windows")]
+    {
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+}
+
 fn backend_log_file() -> Option<std::fs::File> {
     let path = std::env::temp_dir().join("newsdesk-backend.log");
     OpenOptions::new()
@@ -168,6 +181,7 @@ fn start_backend(app: &AppHandle) -> Result<(), String> {
     if let Some(sidecar) = find_sidecar_binary(app) {
         eprintln!("Trying sidecar: {:?}", sidecar);
         let mut cmd = Command::new(&sidecar);
+        hide_console_window(&mut cmd);
         if let Some(log) = backend_log_file() {
             let log2 = backend_log_file();
             cmd.stdout(Stdio::from(log));
@@ -210,16 +224,27 @@ fn start_backend(app: &AppHandle) -> Result<(), String> {
         eprintln!("No sidecar found, falling back to backend script.");
     }
 
-    // Fallback to development script.
+    // Fallback to development layout: run the virtualenv's python directly so
+    // no console window is shown and we don't depend on cmd.exe.
     let backend_dir = find_backend_dir().ok_or_else(|| "Could not find backend directory".to_string())?;
     eprintln!("Backend dir: {:?}", backend_dir);
-    let script = backend_dir.join("start_backend.bat");
-    if !script.exists() {
-        return Err(format!("Backend script not found: {:?}", script));
+    let python_exe = backend_dir.join(".venv").join("Scripts").join("python.exe");
+    if !python_exe.exists() {
+        return Err(format!("Virtualenv python not found: {:?}", python_exe));
     }
 
-    let mut cmd = Command::new("cmd");
-    cmd.arg("/C").arg(&script).current_dir(&backend_dir);
+    let mut cmd = Command::new(&python_exe);
+    cmd.args([
+        "-m",
+        "uvicorn",
+        "app.main:app",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "8000",
+    ])
+    .current_dir(&backend_dir);
+    hide_console_window(&mut cmd);
     if let Some(log) = backend_log_file() {
         let log2 = backend_log_file();
         cmd.stdout(Stdio::from(log));
@@ -278,9 +303,9 @@ async fn toggle_fetching(app: AppHandle) -> Result<bool, String> {
         .store(new_paused, Ordering::Relaxed);
 
     let message = if new_paused {
-        "Background fetching paused"
+        "后台抓取已暂停"
     } else {
-        "Background fetching resumed"
+        "后台抓取已恢复"
     };
 
     if let Err(e) = app.notification().builder().body(message).show() {
@@ -309,14 +334,40 @@ pub fn run() {
 
             start_backend(app.handle())?;
 
-            let show_i = tauri::menu::MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;
-            let refresh_i = tauri::menu::MenuItem::with_id(app, "refresh", "Refresh", true, None::<&str>)?;
-            let toggle_i = tauri::menu::MenuItem::with_id(app, "toggle_fetching", "Toggle fetching", true, None::<&str>)?;
-            let exit_i = tauri::menu::MenuItem::with_id(app, "exit", "Exit", true, None::<&str>)?;
+            let show_i = tauri::menu::MenuItem::with_id(app, "show", "显示", true, None::<&str>)?;
+            let refresh_i = tauri::menu::MenuItem::with_id(app, "refresh", "刷新", true, None::<&str>)?;
+            let toggle_i = tauri::menu::MenuItem::with_id(app, "toggle_fetching", "暂停/恢复抓取", true, None::<&str>)?;
+            let exit_i = tauri::menu::MenuItem::with_id(app, "exit", "退出", true, None::<&str>)?;
             let menu = tauri::menu::Menu::with_items(app, &[&show_i, &refresh_i, &toggle_i, &exit_i])?;
 
+            let window_icon = app
+                .default_window_icon()
+                .ok_or_else(|| "Could not load default window icon".to_string())?
+                .clone();
             let _tray = tauri::tray::TrayIconBuilder::new()
+                .icon(window_icon)
+                .tooltip("NewsDesk")
                 .menu(&menu)
+                .show_menu_on_left_click(false)
+                .on_tray_icon_event(|tray, event| {
+                    if let TrayIconEvent::Click {
+                        button: MouseButton::Left,
+                        button_state: MouseButtonState::Up,
+                        ..
+                    } = event
+                    {
+                        let app = tray.app_handle();
+                        if let Some(window) = app.get_webview_window("main") {
+                            let visible = window.is_visible().unwrap_or(true);
+                            if visible {
+                                let _ = window.hide();
+                            } else {
+                                let _ = window.show();
+                                let _ = window.set_focus();
+                            }
+                        }
+                    }
+                })
                 .on_menu_event(|app, event| match event.id.as_ref() {
                     "show" => {
                         if let Some(window) = app.get_webview_window("main") {

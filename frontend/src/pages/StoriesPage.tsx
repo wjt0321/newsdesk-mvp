@@ -75,9 +75,9 @@ export function StoriesPage() {
     <div className="max-w-4xl mx-auto">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
-          <h2 className="text-2xl font-semibold">Stories</h2>
+          <h2 className="text-2xl font-semibold">报道</h2>
           <p className="text-sm text-text-secondary">
-            {filteredStories.length} of {stories.length} stories
+            {filteredStories.length} / {stories.length} 条报道
           </p>
         </div>
 
@@ -91,7 +91,7 @@ export function StoriesPage() {
             >
               {STATUS_OPTIONS.map((s) => (
                 <option key={s} value={s}>
-                  {s === "all" ? "All statuses" : s.charAt(0).toUpperCase() + s.slice(1)}
+                  {s === "all" ? "全部状态" : s === "new" ? "最新" : s === "developing" ? "进展中" : "稳定"}
                 </option>
               ))}
             </select>
@@ -103,10 +103,10 @@ export function StoriesPage() {
               onChange={(e) => setSortBy(e.target.value as SortOption)}
               className="bg-transparent text-sm text-text-primary outline-none"
             >
-              <option value="heat_desc">Sort by heat</option>
-              <option value="updated_desc">Sort by latest</option>
-              <option value="sources_desc">Sort by sources</option>
-              <option value="articles_desc">Sort by articles</option>
+              <option value="heat_desc">按热度排序</option>
+              <option value="updated_desc">按最新排序</option>
+              <option value="sources_desc">按来源数排序</option>
+              <option value="articles_desc">按文章数排序</option>
             </select>
           </div>
         </div>
@@ -115,23 +115,23 @@ export function StoriesPage() {
       {isLoading ? (
         <div className="flex items-center justify-center py-20 text-text-secondary">
           <Loader2 className="w-5 h-5 animate-spin mr-2" />
-          Loading stories...
+          正在加载报道...
         </div>
       ) : isError ? (
         <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
           <AlertCircle className="w-8 h-8 text-red-600 mx-auto mb-3" />
           <h3 className="text-lg font-semibold text-red-800 mb-1">
-            Failed to load stories
+            加载报道失败
           </h3>
           <p className="text-sm text-red-700 mb-4">
-            {error instanceof Error ? error.message : "Something went wrong. Please try again."}
+            {error instanceof Error ? error.message : "出了点问题，请重试。"}
           </p>
           <button
             onClick={handleRetry}
             className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
           >
             <RotateCcw className="w-4 h-4" />
-            Retry
+            重试
           </button>
         </div>
       ) : filteredStories.length > 0 ? (
@@ -147,7 +147,7 @@ export function StoriesPage() {
         </div>
       ) : (
         <div className="bg-surface border border-border rounded-xl p-8 text-center text-text-secondary">
-          No stories match the selected filters.
+          没有符合所选筛选条件的报道。
         </div>
       )}
 

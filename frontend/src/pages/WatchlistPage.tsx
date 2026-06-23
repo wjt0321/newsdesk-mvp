@@ -29,7 +29,7 @@ import clsx from "clsx";
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof Error) return error.message;
-  return "Something went wrong. Please try again.";
+  return "出了点问题，请重试。";
 }
 
 export function WatchlistPage() {
@@ -111,9 +111,9 @@ export function WatchlistPage() {
     <div className="max-w-6xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-2xl font-semibold">Watchlist</h2>
+          <h2 className="text-2xl font-semibold">关注列表</h2>
           <p className="text-sm text-text-secondary">
-            Keyword rules that match incoming stories
+            匹配 incoming 报道的关键词规则
           </p>
         </div>
       </div>
@@ -124,12 +124,12 @@ export function WatchlistPage() {
       >
         <div className="flex items-center gap-2 mb-4">
           <Bell className="w-4 h-4 text-accent" />
-          <h3 className="text-sm font-semibold">Add watch rule</h3>
+          <h3 className="text-sm font-semibold">添加关注规则</h3>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-7 gap-3">
           <input
             type="text"
-            placeholder="Rule name"
+            placeholder="规则名称"
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
             className="sm:col-span-2 px-3 py-2 text-sm bg-background border border-border rounded-lg outline-none focus:border-accent"
@@ -137,7 +137,7 @@ export function WatchlistPage() {
           />
           <input
             type="text"
-            placeholder="Keywords (comma-separated)"
+            placeholder="关键词（用逗号分隔）"
             value={form.keywords}
             onChange={(e) => setForm({ ...form, keywords: e.target.value })}
             className="sm:col-span-4 px-3 py-2 text-sm bg-background border border-border rounded-lg outline-none focus:border-accent"
@@ -153,7 +153,7 @@ export function WatchlistPage() {
             ) : (
               <Plus className="w-4 h-4" />
             )}
-            Add
+            添加
           </button>
         </div>
       </form>
@@ -162,14 +162,14 @@ export function WatchlistPage() {
         <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6 flex items-start gap-3">
           <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
           <div className="flex-1">
-            <p className="text-sm font-medium text-red-800">Action failed</p>
+            <p className="text-sm font-medium text-red-800">操作失败</p>
             <p className="text-sm text-red-700">{mutationError}</p>
           </div>
           <button
             onClick={() => setMutationError(null)}
             className="text-sm text-red-700 hover:text-red-900 font-medium"
           >
-            Dismiss
+            关闭
           </button>
         </div>
       )}
@@ -177,23 +177,23 @@ export function WatchlistPage() {
       {isLoading ? (
         <div className="flex items-center justify-center py-20 text-text-secondary">
           <Loader2 className="w-5 h-5 animate-spin mr-2" />
-          Loading watch rules...
+          正在加载关注规则...
         </div>
       ) : isError ? (
         <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
           <AlertCircle className="w-8 h-8 text-red-600 mx-auto mb-3" />
           <h3 className="text-lg font-semibold text-red-800 mb-1">
-            Failed to load watch rules
+            加载关注规则失败
           </h3>
           <p className="text-sm text-red-700 mb-4">
-            {error instanceof Error ? error.message : "Something went wrong. Please try again."}
+            {error instanceof Error ? error.message : "出了点问题，请重试。"}
           </p>
           <button
             onClick={() => queryClient.invalidateQueries({ queryKey: ["watch-rules"] })}
             className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
           >
             <RotateCcw className="w-4 h-4" />
-            Retry
+            重试
           </button>
         </div>
       ) : (
@@ -203,13 +203,13 @@ export function WatchlistPage() {
               <div className="px-4 py-3 border-b border-border bg-background">
                 <div className="flex items-center gap-2 text-sm font-semibold text-text-primary">
                   <Bell className="w-4 h-4 text-accent" />
-                  Rules
+                  规则
                 </div>
               </div>
               <div className="divide-y divide-border">
                 {rules.length === 0 ? (
                   <div className="px-4 py-6 text-center text-sm text-text-secondary">
-                    No watch rules yet.
+                    暂无关注规则。
                   </div>
                 ) : (
                   rules.map((rule) => {
@@ -263,7 +263,7 @@ export function WatchlistPage() {
                                   ? "text-green-600 hover:bg-green-50"
                                   : "text-text-secondary hover:bg-background"
                               )}
-                              title={rule.enabled ? "Disable" : "Enable"}
+                              title={rule.enabled ? "禁用" : "启用"}
                             >
                               {isToggling ? (
                                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -277,7 +277,7 @@ export function WatchlistPage() {
                               onClick={() => deleteMutation.mutate(rule.id)}
                               disabled={deleteMutation.isPending}
                               className="p-1.5 rounded-md text-text-secondary hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
-                              title="Delete"
+                              title="删除"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
@@ -293,7 +293,7 @@ export function WatchlistPage() {
                             )}
                           >
                             <span className="w-1 h-1 rounded-full bg-current" />
-                            {rule.enabled ? "Enabled" : "Disabled"}
+                            {rule.enabled ? "已启用" : "已禁用"}
                           </span>
                         </div>
                       </div>
@@ -307,25 +307,25 @@ export function WatchlistPage() {
           <div className="lg:col-span-2">
             {!selectedRule ? (
               <div className="bg-surface border border-border rounded-xl p-8 text-center text-text-secondary">
-                Select a rule to view matching stories.
+                选择一个规则以查看匹配的报道。
               </div>
             ) : storiesLoading ? (
               <div className="flex items-center justify-center py-20 text-text-secondary">
                 <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                Loading stories...
+                正在加载报道...
               </div>
             ) : storiesError ? (
               <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
                 <AlertCircle className="w-8 h-8 text-red-600 mx-auto mb-3" />
                 <h3 className="text-lg font-semibold text-red-800 mb-1">
-                  Failed to load stories
+                  加载报道失败
                 </h3>
                 <button
                   onClick={() => refetchStories()}
                   className="inline-flex items-center gap-2 mt-4 px-4 py-2 text-sm font-medium bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
                 >
                   <RotateCcw className="w-4 h-4" />
-                  Retry
+                  重试
                 </button>
               </div>
             ) : stories.length > 0 ? (
@@ -336,7 +336,7 @@ export function WatchlistPage() {
                     {selectedRule.name}
                   </h3>
                   <span className="text-sm text-text-secondary">
-                    {stories.length} hits
+                    {stories.length} 条匹配
                   </span>
                 </div>
                 {stories.map((story) => (
@@ -350,7 +350,7 @@ export function WatchlistPage() {
               </div>
             ) : (
               <div className="bg-surface border border-border rounded-xl p-8 text-center text-text-secondary">
-                No stories match this rule.
+                没有匹配该规则的报道。
               </div>
             )}
           </div>

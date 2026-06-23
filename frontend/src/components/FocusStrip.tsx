@@ -1,6 +1,7 @@
 import type { Story } from "../api/types";
 import { Flame, TrendingUp } from "lucide-react";
 import clsx from "clsx";
+import { formatStoryStatus } from "../lib/format";
 
 interface FocusStripProps {
   stories: Story[];
@@ -19,7 +20,7 @@ export function FocusStrip({ stories, onStoryClick }: FocusStripProps) {
       <div className="flex items-center gap-2 mb-3">
         <TrendingUp className="w-4 h-4 text-accent" />
         <h2 className="text-sm font-semibold uppercase tracking-wide text-text-secondary">
-          Focus
+          焦点
         </h2>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
@@ -35,7 +36,7 @@ export function FocusStrip({ stories, onStoryClick }: FocusStripProps) {
               </span>
               <span
                 className={clsx(
-                  "text-[10px] px-1.5 py-0.5 rounded-full font-medium capitalize whitespace-nowrap",
+                  "text-[10px] px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap",
                   story.status === "breaking"
                     ? "bg-red-100 text-red-700"
                     : story.status === "hot"
@@ -47,7 +48,7 @@ export function FocusStrip({ stories, onStoryClick }: FocusStripProps) {
                     : "bg-gray-100 text-text-secondary"
                 )}
               >
-                {story.status}
+                {formatStoryStatus(story.status)}
               </span>
             </div>
 
@@ -63,7 +64,7 @@ export function FocusStrip({ stories, onStoryClick }: FocusStripProps) {
 
             <div className="flex items-center justify-between text-xs text-text-secondary mt-auto">
               <div className="flex items-center gap-3">
-                <span>{story.source_count} sources</span>
+                <span>{story.source_count} 来源</span>
                 <span className="flex items-center gap-1 text-amber">
                   <Flame className="w-3 h-3" />
                   {story.heat_score.toFixed(1)}

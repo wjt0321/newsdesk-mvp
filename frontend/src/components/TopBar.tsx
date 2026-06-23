@@ -9,7 +9,7 @@ const TIME_OPTIONS: { label: string; value: number | null }[] = [
   { label: "6h", value: 6 },
   { label: "24h", value: 24 },
   { label: "7d", value: 168 },
-  { label: "All", value: null },
+  { label: "全部", value: null },
 ];
 
 export function TopBar() {
@@ -17,8 +17,17 @@ export function TopBar() {
   const queryClient = useQueryClient();
   const isFetchingStories = useIsFetching({ queryKey: ["stories"] }) > 0;
   const isFetchingSources = useIsFetching({ queryKey: ["sources"] }) > 0;
-  const isFetchingArticles = useIsFetching({ queryKey: ["articles"] }) > 0;
-  const isFetching = isFetchingStories || isFetchingSources || isFetchingArticles;
+  const isFetchingHealth = useIsFetching({ queryKey: ["source-health"] }) > 0;
+  const isFetchingRules = useIsFetching({ queryKey: ["watch-rules"] }) > 0;
+  const isFetchingChannels = useIsFetching({ queryKey: ["channels"] }) > 0;
+  const isFetchingBriefing = useIsFetching({ queryKey: ["briefing"] }) > 0;
+  const isFetching =
+    isFetchingStories ||
+    isFetchingSources ||
+    isFetchingHealth ||
+    isFetchingRules ||
+    isFetchingChannels ||
+    isFetchingBriefing;
 
   const { data: sources = [] } = useQuery({
     queryKey: ["sources"],
@@ -30,7 +39,10 @@ export function TopBar() {
   function handleRefresh() {
     queryClient.invalidateQueries({ queryKey: ["stories"] });
     queryClient.invalidateQueries({ queryKey: ["sources"] });
-    queryClient.invalidateQueries({ queryKey: ["articles"] });
+    queryClient.invalidateQueries({ queryKey: ["source-health"] });
+    queryClient.invalidateQueries({ queryKey: ["watch-rules"] });
+    queryClient.invalidateQueries({ queryKey: ["channels"] });
+    queryClient.invalidateQueries({ queryKey: ["briefing"] });
   }
 
   return (
@@ -44,7 +56,7 @@ export function TopBar() {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search stories..."
+            placeholder="搜索报道..."
             className="w-full bg-background border border-border rounded-lg pl-9 pr-3 py-1.5 text-sm text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-shadow"
           />
         </div>
@@ -73,8 +85,8 @@ export function TopBar() {
         <button
           onClick={handleRefresh}
           className="p-1.5 rounded-md hover:bg-background transition-colors"
-          aria-label="Refresh"
-          title="Refresh"
+          aria-label="刷新"
+          title="刷新"
         >
           <RefreshCw className={clsx("w-4 h-4", isFetching && "animate-spin")} />
         </button>
@@ -84,10 +96,10 @@ export function TopBar() {
 }
 
 const HEALTH_CONFIG = {
-  healthy: { label: "Sources healthy", dotClass: "bg-green-500" },
-  delayed: { label: "Sources delayed", dotClass: "bg-amber-500" },
-  failing: { label: "Sources failing", dotClass: "bg-red-500" },
-  paused: { label: "Sources paused", dotClass: "bg-gray-400" },
+  healthy: { label: "来源健康", dotClass: "bg-green-500" },
+  delayed: { label: "来源延迟", dotClass: "bg-amber-500" },
+  failing: { label: "来源故障", dotClass: "bg-red-500" },
+  paused: { label: "来源暂停", dotClass: "bg-gray-400" },
 } as const;
 
 type HealthStatus = keyof typeof HEALTH_CONFIG;
@@ -106,8 +118,8 @@ function computeSourceHealth(
     return {
       ...HEALTH_CONFIG.paused,
       label: disabledCount === 1
-        ? `${HEALTH_CONFIG.paused.label} (1 paused)`
-        : `${HEALTH_CONFIG.paused.label} (${disabledCount} paused)`,
+        ? `${HEALTH_CONFIG.paused.label} (1 个已暂停)`
+        : `${HEALTH_CONFIG.paused.label} (${disabledCount} 个已暂停)`,
     };
   }
 
@@ -124,7 +136,7 @@ function computeSourceHealth(
   }
 
   const label = disabledCount > 0
-    ? `${HEALTH_CONFIG[status].label} (${disabledCount} paused)`
+    ? `${HEALTH_CONFIG[status].label} (${disabledCount} 个已暂停)`
     : HEALTH_CONFIG[status].label;
 
   return { ...HEALTH_CONFIG[status], label };

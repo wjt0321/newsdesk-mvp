@@ -3,7 +3,7 @@ export function formatRelativeTime(dateString: string): string {
   const now = new Date();
 
   if (Number.isNaN(date.getTime())) {
-    return "unknown time";
+    return "未知时间";
   }
 
   const diffMs = now.getTime() - date.getTime();
@@ -11,29 +11,46 @@ export function formatRelativeTime(dateString: string): string {
   const diffSeconds = Math.floor(Math.abs(diffMs) / 1000);
 
   if (diffSeconds < 60) {
-    return isFuture ? "in a moment" : "just now";
+    return isFuture ? "片刻后" : "刚刚";
   }
 
   const diffMinutes = Math.floor(diffSeconds / 60);
   if (diffMinutes < 60) {
-    return isFuture ? `in ${diffMinutes}m` : `${diffMinutes}m ago`;
+    return isFuture ? `${diffMinutes}分钟后` : `${diffMinutes}分钟前`;
   }
 
   const diffHours = Math.floor(diffMinutes / 60);
   if (diffHours < 24) {
-    return isFuture ? `in ${diffHours}h` : `${diffHours}h ago`;
+    return isFuture ? `${diffHours}小时后` : `${diffHours}小时前`;
   }
 
   const diffDays = Math.floor(diffHours / 24);
   if (diffDays < 30) {
-    return isFuture ? `in ${diffDays}d` : `${diffDays}d ago`;
+    return isFuture ? `${diffDays}天后` : `${diffDays}天前`;
   }
 
   const diffMonths = Math.floor(diffDays / 30);
   if (diffMonths < 12) {
-    return isFuture ? `in ${diffMonths}mo` : `${diffMonths}mo ago`;
+    return isFuture ? `${diffMonths}个月后` : `${diffMonths}个月前`;
   }
 
   const diffYears = Math.floor(diffDays / 365);
-  return isFuture ? `in ${diffYears}y` : `${diffYears}y ago`;
+  return isFuture ? `${diffYears}年后` : `${diffYears}年前`;
+}
+
+export function formatStoryStatus(status: string): string {
+  switch (status) {
+    case "breaking":
+      return "突发";
+    case "hot":
+      return "热门";
+    case "new":
+      return "最新";
+    case "developing":
+      return "进展中";
+    case "stable":
+      return "稳定";
+    default:
+      return status;
+  }
 }

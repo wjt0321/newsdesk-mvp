@@ -1,10 +1,11 @@
 import { useState, useMemo } from "react";
+import { Link } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { listStories } from "../api/stories";
 import type { Story } from "../api/types";
 
 function primarySourceName(story: Story): string {
-  return story.source_names[0] || "unknown";
+  return story.source_names[0] || "未知";
 }
 
 function applySourceDiversity(stories: Story[], maxSameSource: number = 2): Story[] {
@@ -125,14 +126,17 @@ export function TodayPage() {
   function handleRetry() {
     queryClient.invalidateQueries({ queryKey: ["stories"] });
     queryClient.invalidateQueries({ queryKey: ["sources"] });
-    queryClient.invalidateQueries({ queryKey: ["articles"] });
+    queryClient.invalidateQueries({ queryKey: ["source-health"] });
+    queryClient.invalidateQueries({ queryKey: ["watch-rules"] });
+    queryClient.invalidateQueries({ queryKey: ["channels"] });
+    queryClient.invalidateQueries({ queryKey: ["briefing"] });
   }
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64 text-text-secondary">
         <Loader2 className="w-6 h-6 animate-spin mr-2" />
-        <span>Loading today&apos;s briefing...</span>
+        <span>正在加载今日简报...</span>
       </div>
     );
   }
@@ -147,14 +151,14 @@ export function TodayPage() {
         <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
           <AlertCircle className="w-8 h-8 text-red-600 mx-auto mb-3" />
           <h3 className="text-lg font-semibold text-red-800 mb-1">
-            Failed to load today&apos;s briefing
+            加载今日简报失败
           </h3>
           <p className="text-sm text-red-700 mb-2">
-            {error instanceof Error ? error.message : "Something went wrong. Please try again."}
+            {error instanceof Error ? error.message : "出了点问题，请重试。"}
           </p>
           {isConnectionError && (
             <p className="text-xs text-red-600 mb-4">
-              Looks like the backend is not running. Start it with{" "}
+              看起来后端未运行。请使用以下命令启动：{" "}
               <code className="bg-red-100 px-1 py-0.5 rounded">backend/.venv/Scripts/python -m uvicorn app.main:app</code>
             </p>
           )}
@@ -163,7 +167,7 @@ export function TodayPage() {
             className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
           >
             <RotateCcw className="w-4 h-4" />
-            Retry
+            重试
           </button>
         </div>
       </div>
@@ -174,11 +178,11 @@ export function TodayPage() {
     <div className="max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-2xl font-semibold">Today</h2>
+          <h2 className="text-2xl font-semibold">今日</h2>
           <p className="text-sm text-text-secondary">
             {filteredStories.length > 0
-              ? `${filteredStories.length} stories in the current cycle`
-              : "No stories yet"}
+              ? `当前周期内 ${filteredStories.length} 条报道`
+              : "暂无报道"}
           </p>
         </div>
       </div>
@@ -189,26 +193,26 @@ export function TodayPage() {
         <div className="bg-surface border border-border rounded-xl p-8 text-center mb-6">
           <Newspaper className="w-10 h-10 text-text-secondary mx-auto mb-3" />
           <h3 className="text-lg font-semibold text-text-primary mb-1">
-            No stories yet
+            暂无报道
           </h3>
           <p className="text-sm text-text-secondary mb-4 max-w-md mx-auto">
-            Add a few RSS sources and run a fetch to start seeing your briefing.
-            If sources already exist, wait for the next scheduled fetch or trigger one manually.
+            添加几个 RSS 来源并运行抓取，即可开始查看简报。
+            如果已有来源，请等待下次定时抓取或手动触发。
           </p>
           <div className="flex items-center justify-center gap-3">
-            <a
-              href="#/sources"
+            <Link
+              to="/sources"
               className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-accent text-white rounded-lg hover:bg-accent/90 transition-colors"
             >
               <PlusCircle className="w-4 h-4" />
-              Add sources
-            </a>
+              添加来源
+            </Link>
             <button
               onClick={handleRetry}
               className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-background border border-border rounded-lg hover:bg-surface transition-colors"
             >
               <RotateCcw className="w-4 h-4" />
-              Refresh
+              刷新
             </button>
           </div>
         </div>

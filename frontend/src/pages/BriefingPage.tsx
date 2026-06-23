@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { api } from "../api/client";
+import { formatStoryStatus } from "../lib/format";
 
 interface BriefingItem {
   rank: number;
@@ -23,7 +24,7 @@ interface BriefingData {
 }
 
 async function fetchBriefing(): Promise<BriefingData> {
-  const { data } = await api.get<BriefingData>("/api/briefing");
+  const { data } = await api.get<BriefingData>("/briefing");
   return data;
 }
 
@@ -42,11 +43,11 @@ export function BriefingPage() {
   };
 
   if (isLoading) {
-    return <div className="p-6 text-gray-600">Loading briefing...</div>;
+    return <div className="p-6 text-gray-600">正在加载简报...</div>;
   }
 
   if (error || !data) {
-    return <div className="p-6 text-red-600">Failed to load briefing.</div>;
+    return <div className="p-6 text-red-600">加载简报失败。</div>;
   }
 
   return (
@@ -54,18 +55,18 @@ export function BriefingPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">
-            {data.ai_title || "Daily Briefing"}
+            {data.ai_title || "每日简报"}
           </h1>
           <p className="text-sm text-gray-500">
-            Generated at {new Date(data.generated_at).toLocaleString()}
-            {data.model ? ` · model: ${data.model}` : ""}
+            生成于 {new Date(data.generated_at).toLocaleString()}
+            {data.model ? ` · 模型：${data.model}` : ""}
           </p>
         </div>
         <button
           onClick={handleCopy}
           className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
         >
-          {copied ? "Copied!" : "Copy"}
+          {copied ? "已复制！" : "复制"}
         </button>
       </div>
 
@@ -78,9 +79,9 @@ export function BriefingPage() {
           <thead className="bg-gray-50 text-gray-700">
             <tr>
               <th className="px-4 py-2 font-medium">#</th>
-              <th className="px-4 py-2 font-medium">Title</th>
-              <th className="px-4 py-2 font-medium">Status</th>
-              <th className="px-4 py-2 font-medium">Sources</th>
+              <th className="px-4 py-2 font-medium">标题</th>
+              <th className="px-4 py-2 font-medium">状态</th>
+              <th className="px-4 py-2 font-medium">来源</th>
             </tr>
           </thead>
           <tbody className="divide-y">
@@ -98,7 +99,7 @@ export function BriefingPage() {
                         : "bg-gray-100 text-gray-800"
                     }`}
                   >
-                    {item.status}
+                    {formatStoryStatus(item.status)}
                   </span>
                 </td>
                 <td className="px-4 py-2 text-gray-600">{item.source_count}</td>
@@ -109,7 +110,7 @@ export function BriefingPage() {
       </div>
 
       <div>
-        <h2 className="text-lg font-semibold text-gray-900 mb-2">Plain text</h2>
+        <h2 className="text-lg font-semibold text-gray-900 mb-2">纯文本</h2>
         <textarea
           readOnly
           value={data.plain_text}

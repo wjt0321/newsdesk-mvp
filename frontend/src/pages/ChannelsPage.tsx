@@ -33,14 +33,14 @@ function StoryErrorRetry({ onRetry }: { onRetry: () => void }) {
     <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
       <AlertCircle className="w-8 h-8 text-red-600 mx-auto mb-3" />
       <h3 className="text-lg font-semibold text-red-800 mb-1">
-        Failed to load stories
+        加载报道失败
       </h3>
       <button
         onClick={onRetry}
         className="inline-flex items-center gap-2 mt-4 px-4 py-2 text-sm font-medium bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
       >
         <RotateCcw className="w-4 h-4" />
-        Retry
+        重试
       </button>
     </div>
   );
@@ -69,9 +69,9 @@ export function ChannelsPage() {
     <div className="max-w-6xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-2xl font-semibold">Channels</h2>
+          <h2 className="text-2xl font-semibold">频道</h2>
           <p className="text-sm text-text-secondary">
-            Browse stories by topic channel
+            按主题频道浏览报道
           </p>
         </div>
       </div>
@@ -79,23 +79,23 @@ export function ChannelsPage() {
       {isLoading ? (
         <div className="flex items-center justify-center py-20 text-text-secondary">
           <Loader2 className="w-5 h-5 animate-spin mr-2" />
-          Loading channels...
+          正在加载频道...
         </div>
       ) : isError ? (
         <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
           <AlertCircle className="w-8 h-8 text-red-600 mx-auto mb-3" />
           <h3 className="text-lg font-semibold text-red-800 mb-1">
-            Failed to load channels
+            加载频道失败
           </h3>
           <p className="text-sm text-red-700 mb-4">
-            {error instanceof Error ? error.message : "Something went wrong. Please try again."}
+            {error instanceof Error ? error.message : "出了点问题，请重试。"}
           </p>
           <button
             onClick={() => refetch()}
             className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
           >
             <RotateCcw className="w-4 h-4" />
-            Retry
+            重试
           </button>
         </div>
       ) : (
@@ -105,7 +105,7 @@ export function ChannelsPage() {
               <div className="px-4 py-3 border-b border-border bg-background">
                 <div className="flex items-center gap-2 text-sm font-semibold text-text-primary">
                   <LayoutGrid className="w-4 h-4 text-accent" />
-                  Channels
+                  频道
                 </div>
               </div>
               <div className="divide-y divide-border">
@@ -136,12 +136,12 @@ export function ChannelsPage() {
           <div className="lg:col-span-2">
             {!selectedChannel ? (
               <div className="bg-surface border border-border rounded-xl p-8 text-center text-text-secondary">
-                Select a channel to view matching stories.
+                选择一个频道以查看相关报道。
               </div>
             ) : storiesLoading ? (
               <div className="flex items-center justify-center py-20 text-text-secondary">
                 <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                Loading stories...
+                正在加载报道...
               </div>
             ) : storiesError ? (
               <StoryErrorRetry onRetry={() => refetchStories()} />
@@ -150,7 +150,7 @@ export function ChannelsPage() {
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold">{selectedChannel.name}</h3>
                   <span className="text-sm text-text-secondary">
-                    {stories.length} stories
+                    {stories.length} 条报道
                   </span>
                 </div>
                 {stories.map((story) => (
@@ -164,7 +164,7 @@ export function ChannelsPage() {
               </div>
             ) : (
               <div className="bg-surface border border-border rounded-xl p-8 text-center text-text-secondary">
-                No stories match this channel.
+                该频道暂无相关报道。
               </div>
             )}
           </div>

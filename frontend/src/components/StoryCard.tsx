@@ -1,7 +1,7 @@
 import type { Story } from "../api/types";
 import { Flame, Newspaper, ExternalLink, Clock } from "lucide-react";
 import clsx from "clsx";
-import { formatRelativeTime } from "../lib/format";
+import { formatRelativeTime, formatStoryStatus } from "../lib/format";
 
 interface StoryCardProps {
   story: Story;
@@ -40,22 +40,22 @@ export function StoryCard({ story, onClick, variant = "default" }: StoryCardProp
           </div>
           <span
             className={clsx(
-              "text-[10px] px-2 py-0.5 rounded-full font-medium capitalize whitespace-nowrap",
+              "text-[10px] px-2 py-0.5 rounded-full font-medium whitespace-nowrap",
               statusClass
             )}
           >
-            {story.status}
+            {formatStoryStatus(story.status)}
           </span>
         </div>
 
         <div className="flex items-center gap-4 mt-2 text-xs text-text-secondary">
           <div className="flex items-center gap-1">
             <Newspaper className="w-3 h-3" />
-            <span>{story.source_count} sources</span>
+            <span>{story.source_count} 来源</span>
           </div>
           <div className="flex items-center gap-1">
             <ExternalLink className="w-3 h-3" />
-            <span>{story.article_count} articles</span>
+            <span>{story.article_count} 文章</span>
           </div>
           <div className="flex items-center gap-1">
             <Flame className="w-3 h-3 text-amber" />
@@ -104,26 +104,26 @@ export function StoryCard({ story, onClick, variant = "default" }: StoryCardProp
         </div>
         <span
           className={clsx(
-            "text-xs px-2 py-0.5 rounded-full font-medium capitalize whitespace-nowrap",
+            "text-xs px-2 py-0.5 rounded-full font-medium whitespace-nowrap",
             statusClass
           )}
         >
-          {story.status}
+          {formatStoryStatus(story.status)}
         </span>
       </div>
 
       <div className="flex items-center gap-4 mt-3 text-xs text-text-secondary">
         <div className="flex items-center gap-1">
           <Newspaper className="w-3.5 h-3.5" />
-          <span>{story.source_count} sources</span>
+          <span>{story.source_count} 来源</span>
         </div>
         <div className="flex items-center gap-1">
           <ExternalLink className="w-3.5 h-3.5" />
-          <span>{story.article_count} articles</span>
+          <span>{story.article_count} 文章</span>
         </div>
         <div className="flex items-center gap-1">
           <Flame className="w-3.5 h-3.5" />
-          <span>{story.heat_score.toFixed(1)} heat</span>
+          <span>{story.heat_score.toFixed(1)} 热度</span>
         </div>
         <span className="ml-auto">
           {new Date(story.last_updated_at).toLocaleString(undefined, {
@@ -139,12 +139,12 @@ export function StoryCard({ story, onClick, variant = "default" }: StoryCardProp
         <div className="flex items-center gap-2 mt-2 text-[10px]">
           {story.needs_review && (
             <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">
-              needs review
+              需审核
             </span>
           )}
           {!story.needs_review && story.confidence < 0.7 && (
             <span className="px-1.5 py-0.5 rounded bg-gray-100 text-text-secondary">
-              confidence {(story.confidence * 100).toFixed(0)}%
+              置信度 {(story.confidence * 100).toFixed(0)}%
             </span>
           )}
           {story.merge_reason && (

@@ -45,22 +45,22 @@ const HEALTH_CONFIG: Record<
   { label: string; icon: typeof CheckCircle2; className: string }
 > = {
   healthy: {
-    label: "Healthy",
+    label: "健康",
     icon: CheckCircle2,
     className: "bg-green-100 text-green-700",
   },
   delayed: {
-    label: "Delayed",
+    label: "延迟",
     icon: Clock,
     className: "bg-amber-100 text-amber-700",
   },
   failing: {
-    label: "Failing",
+    label: "故障",
     icon: AlertCircle,
     className: "bg-red-100 text-red-700",
   },
   paused: {
-    label: "Paused",
+    label: "已暂停",
     icon: PauseCircle,
     className: "bg-gray-100 text-text-secondary",
   },
@@ -68,7 +68,7 @@ const HEALTH_CONFIG: Record<
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof Error) return error.message;
-  return "Something went wrong. Please try again.";
+  return "出了点问题，请重试。";
 }
 
 export function SourcesPage() {
@@ -103,7 +103,7 @@ export function SourcesPage() {
       setMutationError(null);
       queryClient.invalidateQueries({ queryKey: ["sources"] });
       queryClient.invalidateQueries({ queryKey: ["stories"] });
-      queryClient.invalidateQueries({ queryKey: ["articles"] });
+      queryClient.invalidateQueries({ queryKey: ["source-health"] });
       setForm({
         name: "",
         url: "",
@@ -126,7 +126,7 @@ export function SourcesPage() {
       setMutationError(null);
       queryClient.invalidateQueries({ queryKey: ["sources"] });
       queryClient.invalidateQueries({ queryKey: ["stories"] });
-      queryClient.invalidateQueries({ queryKey: ["articles"] });
+      queryClient.invalidateQueries({ queryKey: ["source-health"] });
     },
     onError: (err: unknown) => {
       const message = getErrorMessage(err);
@@ -173,15 +173,17 @@ export function SourcesPage() {
 
   function handleRetry() {
     queryClient.invalidateQueries({ queryKey: ["sources"] });
+    queryClient.invalidateQueries({ queryKey: ["stories"] });
+    queryClient.invalidateQueries({ queryKey: ["source-health"] });
   }
 
   return (
     <div className="max-w-6xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-2xl font-semibold">Sources</h2>
+          <h2 className="text-2xl font-semibold">来源</h2>
           <p className="text-sm text-text-secondary">
-            {sources.length} {sources.length === 1 ? "source" : "sources"}
+            {sources.length} 个来源
           </p>
         </div>
       </div>
@@ -192,13 +194,13 @@ export function SourcesPage() {
       >
         <div className="flex items-center gap-2 mb-4">
           <Plus className="w-4 h-4 text-accent" />
-          <h3 className="text-sm font-semibold">Add source</h3>
+          <h3 className="text-sm font-semibold">添加来源</h3>
         </div>
         <div className="space-y-3">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <input
               type="text"
-              placeholder="Name"
+              placeholder="名称"
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
               className="px-3 py-2 text-sm bg-background border border-border rounded-lg outline-none focus:border-accent"
@@ -214,7 +216,7 @@ export function SourcesPage() {
             />
             <input
               type="text"
-              placeholder="Category"
+              placeholder="分类"
               value={form.category}
               onChange={(e) => setForm({ ...form, category: e.target.value })}
               className="px-3 py-2 text-sm bg-background border border-border rounded-lg outline-none focus:border-accent"
@@ -232,14 +234,14 @@ export function SourcesPage() {
               <>
                 <input
                   type="text"
-                  placeholder="Language"
+                  placeholder="语言"
                   value={form.language}
                   onChange={(e) => setForm({ ...form, language: e.target.value })}
                   className="px-3 py-2 text-sm bg-background border border-border rounded-lg outline-none focus:border-accent"
                 />
                 <input
                   type="text"
-                  placeholder="Region"
+                  placeholder="地区"
                   value={form.region}
                   onChange={(e) => setForm({ ...form, region: e.target.value })}
                   className="px-3 py-2 text-sm bg-background border border-border rounded-lg outline-none focus:border-accent"
@@ -254,7 +256,7 @@ export function SourcesPage() {
               onClick={() => setShowAdvanced((v) => !v)}
               className="text-xs text-text-secondary hover:text-accent underline"
             >
-              {showAdvanced ? "Hide advanced" : "Advanced options"}
+              {showAdvanced ? "隐藏高级选项" : "高级选项"}
             </button>
             <button
               type="submit"
@@ -266,7 +268,7 @@ export function SourcesPage() {
               ) : (
                 <Plus className="w-4 h-4" />
               )}
-              Add source
+              添加来源
             </button>
           </div>
         </div>
@@ -276,14 +278,14 @@ export function SourcesPage() {
         <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6 flex items-start gap-3">
           <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
           <div className="flex-1">
-            <p className="text-sm font-medium text-red-800">Action failed</p>
+            <p className="text-sm font-medium text-red-800">操作失败</p>
             <p className="text-sm text-red-700">{mutationError}</p>
           </div>
           <button
             onClick={() => setMutationError(null)}
             className="text-sm text-red-700 hover:text-red-900 font-medium"
           >
-            Dismiss
+            关闭
           </button>
         </div>
       )}
@@ -291,23 +293,23 @@ export function SourcesPage() {
       {isLoading ? (
         <div className="flex items-center justify-center py-20 text-text-secondary">
           <Loader2 className="w-5 h-5 animate-spin mr-2" />
-          Loading sources...
+          正在加载来源...
         </div>
       ) : isError ? (
         <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
           <AlertCircle className="w-8 h-8 text-red-600 mx-auto mb-3" />
           <h3 className="text-lg font-semibold text-red-800 mb-1">
-            Failed to load sources
+            加载来源失败
           </h3>
           <p className="text-sm text-red-700 mb-4">
-            {error instanceof Error ? error.message : "Something went wrong. Please try again."}
+            {error instanceof Error ? error.message : "出了点问题，请重试。"}
           </p>
           <button
             onClick={handleRetry}
             className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
           >
             <RotateCcw className="w-4 h-4" />
-            Retry
+            重试
           </button>
         </div>
       ) : sources.length > 0 ? (
@@ -316,15 +318,15 @@ export function SourcesPage() {
             <table className="w-full text-sm">
               <thead className="bg-background border-b border-border">
                 <tr>
-                  <th className="text-left font-medium text-text-secondary px-4 py-3">Name</th>
-                  <th className="text-left font-medium text-text-secondary px-4 py-3">Type</th>
-                  <th className="text-left font-medium text-text-secondary px-4 py-3">Category</th>
+                  <th className="text-left font-medium text-text-secondary px-4 py-3">名称</th>
+                  <th className="text-left font-medium text-text-secondary px-4 py-3">类型</th>
+                  <th className="text-left font-medium text-text-secondary px-4 py-3">分类</th>
                   <th className="text-left font-medium text-text-secondary px-4 py-3">URL</th>
-                  <th className="text-left font-medium text-text-secondary px-4 py-3">Status</th>
-                  <th className="text-left font-medium text-text-secondary px-4 py-3">Health</th>
-                  <th className="text-left font-medium text-text-secondary px-4 py-3">Last fetched</th>
-                  <th className="text-center font-medium text-text-secondary px-4 py-3">Errors</th>
-                  <th className="text-right font-medium text-text-secondary px-4 py-3">Actions</th>
+                  <th className="text-left font-medium text-text-secondary px-4 py-3">状态</th>
+                  <th className="text-left font-medium text-text-secondary px-4 py-3">健康度</th>
+                  <th className="text-left font-medium text-text-secondary px-4 py-3">上次抓取</th>
+                  <th className="text-center font-medium text-text-secondary px-4 py-3">错误</th>
+                  <th className="text-right font-medium text-text-secondary px-4 py-3">操作</th>
                 </tr>
               </thead>
               <tbody>
@@ -386,7 +388,7 @@ export function SourcesPage() {
                               setCategoryInput(source.category);
                             }}
                             className="hover:text-accent hover:underline"
-                            title="Click to edit category"
+                            title="点击编辑分类"
                           >
                             {source.category}
                           </button>
@@ -413,7 +415,7 @@ export function SourcesPage() {
                           )}
                         >
                           <span className="w-1.5 h-1.5 rounded-full bg-current" />
-                          {source.enabled ? "Enabled" : "Disabled"}
+                          {source.enabled ? "已启用" : "已禁用"}
                         </span>
                       </td>
                       <td className="px-4 py-3">
@@ -430,7 +432,7 @@ export function SourcesPage() {
                       <td className="px-4 py-3 text-text-secondary">
                         {source.last_fetched_at
                           ? formatRelativeTime(source.last_fetched_at)
-                          : "Never"}
+                          : "从未"}
                       </td>
                       <td className="px-4 py-3 text-center">
                         <span
@@ -460,7 +462,7 @@ export function SourcesPage() {
                                 ? "border-border bg-background text-text-secondary hover:text-red-600 hover:border-red-200"
                                 : "border-green-200 bg-green-50 text-green-700 hover:bg-green-100"
                             )}
-                            title={source.enabled ? "Disable" : "Enable"}
+                            title={source.enabled ? "禁用" : "启用"}
                           >
                             {isToggling ? (
                               <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -470,19 +472,19 @@ export function SourcesPage() {
                               <Power className="w-3.5 h-3.5" />
                             )}
                             <span className="hidden sm:inline">
-                              {source.enabled ? "Disable" : "Enable"}
+                              {source.enabled ? "禁用" : "启用"}
                             </span>
                           </button>
                           <button
                             onClick={() => fetchMutation.mutate(source.id)}
                             disabled={isFetching}
                             className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-background border border-border hover:border-accent hover:text-accent transition-colors disabled:opacity-50"
-                            title="Fetch now"
+                            title="立即抓取"
                           >
                             <RefreshCw
                               className={clsx("w-3.5 h-3.5", isFetching && "animate-spin")}
                             />
-                            <span className="hidden sm:inline">Fetch now</span>
+                            <span className="hidden sm:inline">立即抓取</span>
                           </button>
                         </div>
                       </td>
@@ -495,7 +497,7 @@ export function SourcesPage() {
         </div>
       ) : (
         <div className="bg-surface border border-border rounded-xl p-8 text-center text-text-secondary">
-          No sources found.
+          暂无来源。
         </div>
       )}
     </div>

@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { Story } from "../api/types";
 import { X, ExternalLink, Clock, Flame, Newspaper, Calendar, GitMerge, AlertTriangle, Diff } from "lucide-react";
 import clsx from "clsx";
-import { formatRelativeTime } from "../lib/format";
+import { formatRelativeTime, formatStoryStatus } from "../lib/format";
 import { listSources } from "../api/sources";
 import { api } from "../api/client";
 
@@ -39,7 +39,7 @@ function useStoryDiff(storyId: number | undefined) {
   return useQuery<StoryDiff>({
     queryKey: ["story-diff", storyId],
     queryFn: async () => {
-      const { data } = await api.get<StoryDiff>(`/api/stories/${storyId}/diff`);
+      const { data } = await api.get<StoryDiff>(`/stories/${storyId}/diff`);
       return data;
     },
     enabled: !!storyId,
@@ -61,11 +61,11 @@ export function StoryDrawer({ story, onClose }: StoryDrawerProps) {
       />
       <aside className="fixed inset-y-0 right-0 w-full max-w-md bg-surface border-l border-border shadow-2xl z-50 flex flex-col">
         <div className="h-14 border-b border-border flex items-center justify-between px-5 flex-shrink-0">
-          <h2 className="font-semibold truncate pr-4">Story details</h2>
+          <h2 className="font-semibold truncate pr-4">报道详情</h2>
           <button
             onClick={onClose}
             className="p-1.5 rounded-md hover:bg-background transition-colors"
-            aria-label="Close"
+            aria-label="关闭"
           >
             <X className="w-5 h-5" />
           </button>
@@ -75,7 +75,7 @@ export function StoryDrawer({ story, onClose }: StoryDrawerProps) {
           <div>
             <span
               className={clsx(
-                "inline-block text-xs px-2 py-0.5 rounded-full font-medium capitalize mb-3",
+                "inline-block text-xs px-2 py-0.5 rounded-full font-medium mb-3",
                 story.status === "breaking"
                   ? "bg-red-100 text-red-700"
                   : story.status === "hot"
@@ -87,7 +87,7 @@ export function StoryDrawer({ story, onClose }: StoryDrawerProps) {
                   : "bg-gray-100 text-text-secondary"
               )}
             >
-              {story.status}
+              {formatStoryStatus(story.status)}
             </span>
             <h3 className="text-xl font-semibold leading-snug">
               {story.canonical_title}
@@ -103,21 +103,21 @@ export function StoryDrawer({ story, onClose }: StoryDrawerProps) {
             <div className="bg-background rounded-lg p-3">
               <div className="text-text-secondary text-xs flex items-center gap-1">
                 <Newspaper className="w-3 h-3" />
-                Sources
+                来源
               </div>
               <div className="font-semibold mt-0.5">{story.source_count}</div>
             </div>
             <div className="bg-background rounded-lg p-3">
               <div className="text-text-secondary text-xs flex items-center gap-1">
                 <ExternalLink className="w-3 h-3" />
-                Articles
+                文章
               </div>
               <div className="font-semibold mt-0.5">{story.article_count}</div>
             </div>
             <div className="bg-background rounded-lg p-3">
               <div className="text-text-secondary text-xs flex items-center gap-1">
                 <Flame className="w-3 h-3" />
-                Heat
+                热度
               </div>
               <div className="font-semibold mt-0.5">
                 {story.heat_score.toFixed(1)}
@@ -128,12 +128,12 @@ export function StoryDrawer({ story, onClose }: StoryDrawerProps) {
           <div className="bg-background rounded-lg p-3 text-sm space-y-2">
             <div className="flex items-center gap-2 text-text-secondary">
               <Clock className="w-3.5 h-3.5" />
-              <span>Updated {formatRelativeTime(story.last_updated_at)}</span>
+              <span>更新于 {formatRelativeTime(story.last_updated_at)}</span>
             </div>
             <div className="flex items-center gap-2 text-text-secondary">
               <Calendar className="w-3.5 h-3.5" />
               <span>
-                First seen{" "}
+                首次出现{" "}
                 {new Date(story.first_seen_at).toLocaleString(undefined, {
                   month: "short",
                   day: "numeric",
@@ -145,27 +145,27 @@ export function StoryDrawer({ story, onClose }: StoryDrawerProps) {
             <div className="flex items-center gap-2">
               <GitMerge className="w-3.5 h-3.5 text-text-secondary" />
               <span className="text-text-secondary">
-                Merged by{" "}
+                合并依据{" "}
                 <span className="font-medium text-text-primary">
-                  {story.merge_reason ?? "unknown"}
+                  {story.merge_reason ?? "未知"}
                 </span>
                 {story.confidence > 0 && (
                   <span className="ml-2">
-                    · confidence {(story.confidence * 100).toFixed(0)}%
+                    · 置信度 {(story.confidence * 100).toFixed(0)}%
                   </span>
                 )}
               </span>
               {story.needs_review && (
                 <span className="inline-flex items-center gap-1 text-xs text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">
                   <AlertTriangle className="w-3 h-3" />
-                  Needs review
+                  需审核
                 </span>
               )}
             </div>
           </div>
 
           <div>
-            <h4 className="text-sm font-semibold mb-2">Sources</h4>
+            <h4 className="text-sm font-semibold mb-2">来源</h4>
             <div className="flex flex-wrap gap-2">
               {story.source_names.map((name) => (
                 <span
@@ -180,7 +180,7 @@ export function StoryDrawer({ story, onClose }: StoryDrawerProps) {
 
           <div>
             <h4 className="text-sm font-semibold mb-2">
-              Articles ({story.articles.length})
+              文章 ({story.articles.length})
             </h4>
             <ul className="space-y-2">
               {story.articles.map((article) => (
@@ -202,7 +202,7 @@ export function StoryDrawer({ story, onClose }: StoryDrawerProps) {
                       </p>
                       <div className="flex items-center gap-2 mt-1 text-xs text-text-secondary">
                         <span className="font-medium">
-                          {sourceNameById.get(article.source_id) || `Source #${article.source_id}`}
+                          {sourceNameById.get(article.source_id) || `来源 #${article.source_id}`}
                         </span>
                         {article.published_at && (
                           <span>{formatRelativeTime(article.published_at)}</span>
@@ -219,11 +219,11 @@ export function StoryDrawer({ story, onClose }: StoryDrawerProps) {
             <div className="border-t border-border pt-4">
               <h4 className="text-sm font-semibold mb-2 flex items-center gap-1">
                 <Diff className="w-4 h-4" />
-                Source diff
+                来源差异
               </h4>
               {diff.common_words.length > 0 && (
                 <div className="mb-3">
-                  <span className="text-xs text-text-secondary">Common words:</span>
+                  <span className="text-xs text-text-secondary">共同词：</span>
                   <div className="flex flex-wrap gap-1 mt-1">
                     {diff.common_words.map((word) => (
                       <span key={word} className="text-xs px-1.5 py-0.5 bg-background border border-border rounded">
