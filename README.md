@@ -148,9 +148,11 @@ npm run build
 
 ### 桌面端构建（Windows NSIS 安装包）
 
-**开发模式**：Tauri 会优先寻找 `frontend/src-tauri/sidecars/newsdesk-backend-x86_64-pc-windows-msvc.exe`；找不到时回退到 `backend/start_backend.bat`。
+> ⚠️ 不要单独运行 `cargo build --release`。Tauri 桌面端必须通过 `npm run tauri:build` 构建，才能正确把前端 `dist/` 资源打包进可执行文件；否则运行时窗口会尝试连接开发服务器 `localhost:5173`，出现 “localhost 拒绝连接”。
 
-**生产模式（打包 backend 为 sidecar exe）**：
+**开发模式**：Tauri 会优先寻找 `frontend/src-tauri/sidecars/newsdesk-backend-x86_64-pc-windows-msvc.exe`；找不到（或 sidecar 为空/无效）时回退到 `backend/start_backend.bat`。开发模式要求项目源码和 `backend/.venv` 保留在原位。
+
+**生产模式（打包 backend 为独立 sidecar exe）**：
 
 ```bash
 cd newsdesk-mvp
@@ -159,12 +161,10 @@ cd frontend
 npm run tauri:build
 ```
 
-`scripts/build_backend_exe.py` 会调用 PyInstaller 生成独立可执行文件，并自动复制到 `frontend/src-tauri/sidecars/`。
+`scripts/build_backend_exe.py` 会调用 PyInstaller 生成独立可执行文件，并自动复制到 `frontend/src-tauri/sidecars/`。构建完成后：
 
-产物：
-
-- 可执行文件：`frontend/src-tauri/target/release/newsdesk.exe`
-- 安装包：`frontend/src-tauri/target/release/bundle/nsis/NewsDesk_0.1.0_x64-setup.exe`
+- 可直接运行的二进制：`frontend/src-tauri/target/release/newsdesk.exe`
+- 可分发的安装包：`frontend/src-tauri/target/release/bundle/nsis/NewsDesk_0.1.0_x64-setup.exe`
 
 ---
 

@@ -66,7 +66,7 @@ if __name__ == "__main__":
         "--specpath",
         "build/pyinstaller",
         "--add-data",
-        f"app{os.pathsep}app",
+        f"{os.path.join(BACKEND_DIR, 'app')}{os.pathsep}app",
         str(entry_path),
     ]
 
