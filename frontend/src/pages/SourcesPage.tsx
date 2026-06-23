@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   useQuery,
   useMutation,
   useQueryClient,
 } from "@tanstack/react-query";
+import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import {
   listSources,
   createSource,
@@ -76,6 +77,56 @@ function getErrorMessage(error: unknown): string {
   return "出了点问题，请重试。";
 }
 
+const CATEGORY_MAP: Record<string, string> = {
+  general: "综合",
+  tech: "科技",
+  technology: "科技",
+  global: "全球",
+  world: "全球",
+  finance: "财经",
+  games: "游戏",
+  gaming: "游戏",
+  science: "科学",
+  sports: "体育",
+  entertainment: "娱乐",
+  politics: "政治",
+  life: "生活",
+  lifestyle: "生活",
+  social: "社交",
+};
+
+function formatCategory(category: string): string {
+  return CATEGORY_MAP[category.toLowerCase()] || category;
+}
+
+type SortKey = "name" | "type" | "category" | null;
+
+function SortHeader({
+  label,
+  active,
+  desc,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  desc: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="inline-flex items-center gap-1 hover:text-accent"
+    >
+      {label}
+      {active ? (
+        desc ? <ArrowDown className="w-3 h-3" /> : <ArrowUp className="w-3 h-3" />
+      ) : (
+        <ArrowUpDown className="w-3 h-3 text-text-secondary" />
+      )}
+    </button>
+  );
+}
+
 export function SourcesPage() {
   const queryClient = useQueryClient();
 
@@ -95,6 +146,35 @@ export function SourcesPage() {
   });
 
   const healthBySourceId = new Map(healthData.map((h) => [h.id, h]));
+
+  const [sortKey, setSortKey] = useState<SortKey>(null);
+  const [sortDesc, setSortDesc] = useState(false);
+
+  const sortedSources = useMemo(() => {
+    if (!sortKey) return sources;
+    const sorted = [...sources].sort((a, b) => {
+      const aVal = String(a[sortKey]).toLowerCase();
+      const bVal = String(b[sortKey]).toLowerCase();
+      if (aVal < bVal) return sortDesc ? 1 : -1;
+      if (aVal > bVal) return sortDesc ? -1 : 1;
+      return 0;
+    });
+    return sorted;
+  }, [sources, sortKey, sortDesc]);
+
+  function handleSort(key: SortKey) {
+    if (sortKey === key) {
+      if (sortDesc) {
+        setSortKey(null);
+        setSortDesc(false);
+      } else {
+        setSortDesc(true);
+      }
+    } else {
+      setSortKey(key);
+      setSortDesc(false);
+    }
+  }
 
   const [form, setForm] = useState({
     name: "",
@@ -356,9 +436,15 @@ export function SourcesPage() {
             <table className="w-full text-sm">
               <thead className="bg-background border-b border-border">
                 <tr>
-                  <th className="text-left font-medium text-text-secondary px-4 py-3">名称</th>
-                  <th className="text-left font-medium text-text-secondary px-4 py-3">类型</th>
-                  <th className="text-left font-medium text-text-secondary px-4 py-3">分类</th>
+                  <th className="text-left font-medium text-text-secondary px-4 py-3">
+                    <SortHeader label="名称" active={sortKey === "name"} desc={sortDesc} onClick={() => handleSort("name")} />
+                  </th>
+                  <th className="text-left font-medium text-text-secondary px-4 py-3">
+                    <SortHeader label="类型" active={sortKey === "type"} desc={sortDesc} onClick={() => handleSort("type")} />
+                  </th>
+                  <th className="text-left font-medium text-text-secondary px-4 py-3">
+                    <SortHeader label="分类" active={sortKey === "category"} desc={sortDesc} onClick={() => handleSort("category")} />
+                  </th>
                   <th className="text-left font-medium text-text-secondary px-4 py-3">URL</th>
                   <th className="text-left font-medium text-text-secondary px-4 py-3">状态</th>
                   <th className="text-left font-medium text-text-secondary px-4 py-3">健康度</th>
@@ -369,7 +455,7 @@ export function SourcesPage() {
                 </tr>
               </thead>
               <tbody>
-                {sources.map((source) => {
+                {sortedSources.map((source) => {
                   const health = getSourceHealth(source);
                   const healthCfg = HEALTH_CONFIG[health];
                   const HealthIcon = healthCfg.icon;
@@ -395,7 +481,9 @@ export function SourcesPage() {
                           <span className="truncate max-w-[180px]">{source.name}</span>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-text-secondary capitalize">{source.type}</td>
+                      <td className="px-4 py-3 text-text-secondary capitalize">
+                        {source.type === "rsshub" ? "RSSHub" : source.type.toUpperCase()}
+                      </td>
                       <td className="px-4 py-3 text-text-secondary capitalize">
                         {editingCategoryId === source.id ? (
                           <form
@@ -434,7 +522,7 @@ export function SourcesPage() {
                             className="hover:text-accent hover:underline"
                             title="点击编辑分类"
                           >
-                            {source.category}
+                            {formatCategory(source.category)}
                           </button>
                         )}
                       </td>

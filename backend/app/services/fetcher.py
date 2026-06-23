@@ -23,7 +23,17 @@ def _normalize_title(title: str) -> str:
 
 def _parse_feed(source: models.Source) -> Any:
     if source.type in ("rss", "rsshub"):
-        return feedparser.parse(source.url)
+        data = feedparser.parse(source.url)
+        # feedparser swallows network-level failures and returns an empty/bozo
+        # feed. Treat an empty, bozo-marked result as a fetch failure so the
+        # user sees a real error instead of "success, 0 articles".
+        if data.bozo and not data.entries:
+            exc = data.get("bozo_exception")
+            raise RuntimeError(f"Failed to fetch feed: {exc or 'unknown'}")
+        status = data.get("status")
+        if isinstance(status, int) and status >= 400:
+            raise RuntimeError(f"Feed returned HTTP {status}")
+        return data
     # API / web 类型先用 HTTP GET 再尝试按 RSS 解析
     response = httpx.get(source.url, timeout=30, follow_redirects=True)
     response.raise_for_status()
