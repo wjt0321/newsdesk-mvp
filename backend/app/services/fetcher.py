@@ -21,23 +21,50 @@ def _normalize_title(title: str) -> str:
     return "".join(ch.lower() for ch in title if ch.isalnum())
 
 
-def _parse_feed(source: models.Source) -> Any:
-    if source.type in ("rss", "rsshub"):
-        data = feedparser.parse(source.url)
-        # feedparser swallows network-level failures and returns an empty/bozo
-        # feed. Treat an empty, bozo-marked result as a fetch failure so the
-        # user sees a real error instead of "success, 0 articles".
-        if data.bozo and not data.entries:
-            exc = data.get("bozo_exception")
-            raise RuntimeError(f"Failed to fetch feed: {exc or 'unknown'}")
-        status = data.get("status")
-        if isinstance(status, int) and status >= 400:
-            raise RuntimeError(f"Feed returned HTTP {status}")
-        return data
-    # API / web 类型先用 HTTP GET 再尝试按 RSS 解析
-    response = httpx.get(source.url, timeout=30, follow_redirects=True)
+_FETCH_TIMEOUT = 30
+_FETCH_USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36 NewsDesk/0.1.0"
+)
+
+
+def _fetch_text(url: str) -> httpx.Response:
+    headers = {
+        "User-Agent": _FETCH_USER_AGENT,
+        "Accept": "application/rss+xml, application/atom+xml, application/xml, text/xml, */*",
+    }
+    response = httpx.get(url, timeout=_FETCH_TIMEOUT, follow_redirects=True, headers=headers)
     response.raise_for_status()
-    return feedparser.parse(response.text)
+    return response
+
+
+def _parse_feed(source: models.Source) -> Any:
+    # Fetch every source with a modern browser UA. Many sites block
+    # feedparser's default urllib user agent or return 403/503; using httpx
+    # gives us explicit status codes, redirects, and better error messages.
+    response = _fetch_text(source.url)
+    data = feedparser.parse(response.text)
+
+    # feedparser swallows network-level failures and returns an empty/bozo
+    # feed. Treat an empty, bozo-marked result as a fetch failure so the
+    # user sees a real error instead of "success, 0 articles".
+    if data.bozo and not data.entries:
+        exc = data.get("bozo_exception")
+        raise RuntimeError(f"Failed to fetch feed: {exc or 'unknown'}")
+
+    if response.status_code >= 400:
+        raise RuntimeError(f"Feed returned HTTP {response.status_code}")
+
+    # Some sites return an HTML page (paywall, redirect, or dead URL) with no
+    # feed entries. Detect that instead of silently recording "success, 0".
+    content_type = response.headers.get("content-type", "").lower()
+    has_feed_identity = bool(data.feed.get("title") or data.feed.get("link"))
+    if content_type.startswith("text/html") and not data.entries:
+        raise RuntimeError("Feed URL returned an HTML page instead of an RSS/Atom feed")
+    if not data.entries and not has_feed_identity:
+        raise RuntimeError("Feed is empty or invalid")
+
+    return data
 
 
 def _execute_fetch(db: Session, source: models.Source, log: models.FetchLog) -> None:

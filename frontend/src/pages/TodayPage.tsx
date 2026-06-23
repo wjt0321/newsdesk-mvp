@@ -114,8 +114,13 @@ export function TodayPage() {
   );
 
   const focusStories = applySourceDiversity(highConfidenceStories, 2).slice(0, 5);
+  // Show the top high-confidence stories in the visual board. Stories with a
+  // cover image are shown first; the VisualBoard already renders a text-only
+  // placeholder for stories without images, so the board is never empty.
   const visualStories = applySourceDiversity(
-    highConfidenceStories.filter((story) => story.articles.some((article) => article.image_url)),
+    [...highConfidenceStories].sort(
+      (a, b) => Number(b.articles.some((article) => article.image_url)) - Number(a.articles.some((article) => article.image_url))
+    ),
     2
   ).slice(0, 8);
   const textStories = applySourceDiversity(sortedByQuality, 3).slice(0, 40);

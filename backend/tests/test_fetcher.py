@@ -4,6 +4,23 @@ import app.services.fetcher as fetcher_module
 from app.models import Article
 
 
+class _FakeResponse:
+    def __init__(self, text: str, status_code: int = 200, content_type: str = "application/rss+xml"):
+        self.text = text
+        self.status_code = status_code
+        self.headers = {"content-type": content_type}
+
+    def raise_for_status(self):
+        if self.status_code >= 400:
+            raise RuntimeError(f"HTTP {self.status_code}")
+
+
+def _fake_get_factory(xml: str):
+    def fake_get(url, **kwargs):
+        return _FakeResponse(xml)
+    return fake_get
+
+
 def test_fetch_source_dedup(client, monkeypatch):
     created = client.post("/api/sources", json={
         "name": "Test Source",
@@ -23,8 +40,7 @@ def test_fetch_source_dedup(client, monkeypatch):
   </channel>
 </rss>"""
 
-    original_parse = feedparser.parse
-    monkeypatch.setattr(fetcher_module.feedparser, "parse", lambda url: original_parse(sample_xml))
+    monkeypatch.setattr(fetcher_module.httpx, "get", _fake_get_factory(sample_xml))
 
     resp = client.post(f"/api/sources/{source_id}/fetch")
     assert resp.status_code == 200
@@ -47,10 +63,10 @@ def test_fetch_source_failure_logged(client, db, monkeypatch):
     })
     source_id = created.json()["id"]
 
-    def boom(url):
+    def boom(url, **kwargs):
         raise RuntimeError("network down")
 
-    monkeypatch.setattr(fetcher_module.feedparser, "parse", boom)
+    monkeypatch.setattr(fetcher_module.httpx, "get", boom)
 
     resp = client.post(f"/api/sources/{source_id}/fetch")
     assert resp.status_code == 200
@@ -73,10 +89,10 @@ def test_fetch_source_failure_persists_last_fetched_at(client, monkeypatch):
     })
     source_id = created.json()["id"]
 
-    def boom(url):
+    def boom(url, **kwargs):
         raise RuntimeError("network down")
 
-    monkeypatch.setattr(fetcher_module.feedparser, "parse", boom)
+    monkeypatch.setattr(fetcher_module.httpx, "get", boom)
 
     resp = client.post(f"/api/sources/{source_id}/fetch")
     assert resp.status_code == 200
@@ -111,8 +127,7 @@ def test_fetch_source_skips_empty_titles(client, monkeypatch):
   </channel>
 </rss>"""
 
-    original_parse = feedparser.parse
-    monkeypatch.setattr(fetcher_module.feedparser, "parse", lambda url: original_parse(sample_xml))
+    monkeypatch.setattr(fetcher_module.httpx, "get", _fake_get_factory(sample_xml))
 
     resp = client.post(f"/api/sources/{source_id}/fetch")
     assert resp.status_code == 200
@@ -120,3 +135,25 @@ def test_fetch_source_skips_empty_titles(client, monkeypatch):
     assert data["status"] == "success"
     assert data["fetched_count"] == 1
     assert data["new_count"] == 1
+
+
+def test_fetch_source_rejects_html_page(client, monkeypatch):
+    created = client.post("/api/sources", json={
+        "name": "HTML Source",
+        "type": "rss",
+        "url": "http://example.com/news",
+    })
+    source_id = created.json()["id"]
+
+    html = "<html><head><title>News</title></head><body>oops</body></html>"
+
+    def fake_get(url, **kwargs):
+        return _FakeResponse(html, content_type="text/html; charset=utf-8")
+
+    monkeypatch.setattr(fetcher_module.httpx, "get", fake_get)
+
+    resp = client.post(f"/api/sources/{source_id}/fetch")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["status"] == "failed"
+    assert "HTML page" in data["error_message"]

@@ -119,3 +119,23 @@ def test_normalize_entry_published_parsed_fallback():
     assert article["published_at"].year == 2026
     assert article["published_at"].month == 6
     assert article["published_at"].day == 22
+
+
+def test_normalize_entry_extracts_image_from_html():
+    source = MagicMock(id=6, language="en")
+    xml = """<?xml version="1.0"?>
+<rss>
+  <channel>
+    <item>
+      <title>HTML Image Entry</title>
+      <link>http://example.com/f</link>
+      <description>&lt;p&gt;&lt;img src="http://example.com/lead.jpg" alt="lead" /&gt; summary&lt;/p&gt;</description>
+    </item>
+  </channel>
+</rss>"""
+    parsed = feedparser.parse(xml)
+    entry = parsed.entries[0]
+
+    article = normalize_entry(source, entry)
+
+    assert article["image_url"] == "http://example.com/lead.jpg"

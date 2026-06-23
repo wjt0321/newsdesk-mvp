@@ -65,3 +65,22 @@ def db():
         yield session
     finally:
         session.close()
+
+
+class _FakeHttpResponse:
+    text = ""
+    status_code = 200
+    headers = {"content-type": "application/rss+xml; charset=utf-8"}
+
+    def raise_for_status(self):
+        pass
+
+
+@pytest.fixture(autouse=True)
+def _mock_httpx_get(monkeypatch):
+    # The fetcher now uses httpx to retrieve feeds. Most tests mock feedparser
+    # itself and are not concerned with HTTP, so provide a harmless default
+    # response. Tests that care about HTTP behavior can override this.
+    import app.services.fetcher as fetcher_module
+
+    monkeypatch.setattr(fetcher_module.httpx, "get", lambda url, **kwargs: _FakeHttpResponse())
