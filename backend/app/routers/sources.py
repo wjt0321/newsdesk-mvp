@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from .. import database, models, schemas
-from ..services.fetcher import fetch_source
+from ..services.fetcher import fetch_source, start_fetch_async
 
 router = APIRouter(prefix="/sources", tags=["sources"])
 
@@ -74,10 +74,16 @@ def delete_source(source_id: int, db: Session = Depends(database.get_db)):
 
 
 @router.post("/{source_id}/fetch", response_model=schemas.FetchLogRead)
-def trigger_fetch(source_id: int, db: Session = Depends(database.get_db)):
+def trigger_fetch(
+    source_id: int,
+    background: bool = False,
+    db: Session = Depends(database.get_db),
+):
     if _is_paused(db):
         raise HTTPException(status_code=409, detail="Fetching is paused")
     source = db.get(models.Source, source_id)
     if not source:
         raise HTTPException(status_code=404, detail="Source not found")
+    if background:
+        return start_fetch_async(db, source)
     return fetch_source(db, source)

@@ -3,6 +3,7 @@ import type { Story } from "../api/types";
 import { X, ExternalLink, Clock, Flame, Newspaper, Calendar, GitMerge, AlertTriangle, Diff } from "lucide-react";
 import clsx from "clsx";
 import { formatRelativeTime, formatStoryStatus } from "../lib/format";
+import { openExternal } from "../lib/openExternal";
 import { listSources } from "../api/sources";
 import { api } from "../api/client";
 
@@ -188,12 +189,12 @@ export function StoryDrawer({ story, onClose }: StoryDrawerProps) {
                   key={article.id}
                   className="group p-2 rounded-lg hover:bg-background transition-colors"
                 >
-                  <a
-                    href={article.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-start gap-2"
-                    onClick={(e) => e.stopPropagation()}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openExternal(article.url);
+                    }}
+                    className="flex items-start gap-2 text-left w-full"
                   >
                     <ExternalLink className="w-4 h-4 text-text-secondary mt-0.5 flex-shrink-0" />
                     <div className="flex-1 min-w-0">
@@ -209,7 +210,7 @@ export function StoryDrawer({ story, onClose }: StoryDrawerProps) {
                         )}
                       </div>
                     </div>
-                  </a>
+                  </button>
                 </li>
               ))}
             </ul>

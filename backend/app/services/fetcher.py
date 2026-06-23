@@ -1,11 +1,12 @@
 import hashlib
+import threading
 from typing import Any
 
 import feedparser
 import httpx
 from sqlalchemy.orm import Session
 
-from .. import models
+from .. import database, models
 from ..utils.time import utc_now
 from .normalizer import normalize_entry
 from .story_engine import assign_article_to_story
@@ -29,13 +30,8 @@ def _parse_feed(source: models.Source) -> Any:
     return feedparser.parse(response.text)
 
 
-def fetch_source(db: Session, source: models.Source) -> models.FetchLog:
-    log = models.FetchLog(source_id=source.id, status="running")
-    db.add(log)
-    source.last_fetched_at = utc_now()
-    db.commit()
-    db.refresh(log)
-
+def _execute_fetch(db: Session, source: models.Source, log: models.FetchLog) -> None:
+    """Run the actual fetch/parse/insert logic against an already-created log."""
     try:
         data = _parse_feed(source)
         fetched_count = 0
@@ -66,7 +62,6 @@ def fetch_source(db: Session, source: models.Source) -> models.FetchLog:
             if story is not None:
                 new_count += 1
 
-        # commit once at the end of the try block
         source.last_success_at = utc_now()
         source.error_count = 0
 
@@ -76,8 +71,6 @@ def fetch_source(db: Session, source: models.Source) -> models.FetchLog:
         log.ended_at = utc_now()
 
         db.commit()
-        db.refresh(log)
-        return log
 
     except Exception as exc:
         # Roll back any partial article/story inserts from the failed batch.
@@ -90,5 +83,49 @@ def fetch_source(db: Session, source: models.Source) -> models.FetchLog:
         log.ended_at = utc_now()
 
         db.commit()
-        db.refresh(log)
-        return log
+
+
+def fetch_source(db: Session, source: models.Source) -> models.FetchLog:
+    """Synchronously fetch a source. Used by the scheduler."""
+    log = models.FetchLog(source_id=source.id, status="running")
+    db.add(log)
+    source.last_fetched_at = utc_now()
+    db.commit()
+    db.refresh(log)
+
+    _execute_fetch(db, source, log)
+    db.refresh(log)
+    return log
+
+
+def _background_fetch(source_id: int, log_id: int) -> None:
+    """Run a fetch in a background thread using a fresh DB session."""
+    db = database.SessionLocal()
+    try:
+        source = db.get(models.Source, source_id)
+        log = db.get(models.FetchLog, log_id)
+        if source is None or log is None:
+            return
+        _execute_fetch(db, source, log)
+    finally:
+        db.close()
+
+
+def start_fetch_async(db: Session, source: models.Source) -> models.FetchLog:
+    """Create a fetch log and run the fetch in a background thread.
+
+    Returns immediately so the HTTP response is not blocked by feed parsing.
+    """
+    log = models.FetchLog(source_id=source.id, status="running")
+    db.add(log)
+    source.last_fetched_at = utc_now()
+    db.commit()
+    db.refresh(log)
+
+    thread = threading.Thread(
+        target=_background_fetch,
+        args=(source.id, log.id),
+        daemon=True,
+    )
+    thread.start()
+    return log

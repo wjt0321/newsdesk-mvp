@@ -8,7 +8,9 @@ import {
   listSources,
   createSource,
   updateSource,
+  deleteSource,
   triggerFetch,
+  listSourceHealth,
 } from "../api/sources";
 import { formatRelativeTime } from "../lib/format";
 import type { Source } from "../api/types";
@@ -24,8 +26,11 @@ import {
   CheckCircle2,
   PauseCircle,
   RotateCcw,
+  Trash2,
 } from "lucide-react";
+import { toast } from "sonner";
 import clsx from "clsx";
+import { openExternal } from "../lib/openExternal";
 
 const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
 
@@ -84,6 +89,13 @@ export function SourcesPage() {
     queryFn: listSources,
   });
 
+  const { data: healthData = [] } = useQuery({
+    queryKey: ["source-health"],
+    queryFn: listSourceHealth,
+  });
+
+  const healthBySourceId = new Map(healthData.map((h) => [h.id, h]));
+
   const [form, setForm] = useState({
     name: "",
     url: "",
@@ -101,6 +113,7 @@ export function SourcesPage() {
     mutationFn: createSource,
     onSuccess: () => {
       setMutationError(null);
+      toast.success("来源已添加");
       queryClient.invalidateQueries({ queryKey: ["sources"] });
       queryClient.invalidateQueries({ queryKey: ["stories"] });
       queryClient.invalidateQueries({ queryKey: ["source-health"] });
@@ -116,6 +129,7 @@ export function SourcesPage() {
     onError: (err: unknown) => {
       const message = getErrorMessage(err);
       setMutationError(message);
+      toast.error(`添加来源失败：${message}`);
       console.error("Failed to create source:", err);
     },
   });
@@ -124,6 +138,7 @@ export function SourcesPage() {
     mutationFn: triggerFetch,
     onSuccess: () => {
       setMutationError(null);
+      toast.success("已开始后台抓取，稍后刷新查看最新数据");
       queryClient.invalidateQueries({ queryKey: ["sources"] });
       queryClient.invalidateQueries({ queryKey: ["stories"] });
       queryClient.invalidateQueries({ queryKey: ["source-health"] });
@@ -131,6 +146,7 @@ export function SourcesPage() {
     onError: (err: unknown) => {
       const message = getErrorMessage(err);
       setMutationError(message);
+      toast.error(`抓取失败：${message}`);
       console.error("Failed to fetch source:", err);
     },
   });
@@ -140,11 +156,14 @@ export function SourcesPage() {
       updateSource(id, { enabled: !enabled }),
     onSuccess: () => {
       setMutationError(null);
+      toast.success("状态已更新");
       queryClient.invalidateQueries({ queryKey: ["sources"] });
+      queryClient.invalidateQueries({ queryKey: ["source-health"] });
     },
     onError: (err: unknown) => {
       const message = getErrorMessage(err);
       setMutationError(message);
+      toast.error(`更新状态失败：${message}`);
       console.error("Failed to toggle source:", err);
     },
   });
@@ -155,12 +174,31 @@ export function SourcesPage() {
     onSuccess: () => {
       setMutationError(null);
       setEditingCategoryId(null);
+      toast.success("分类已更新");
       queryClient.invalidateQueries({ queryKey: ["sources"] });
     },
     onError: (err: unknown) => {
       const message = getErrorMessage(err);
       setMutationError(message);
+      toast.error(`更新分类失败：${message}`);
       console.error("Failed to update source category:", err);
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: deleteSource,
+    onSuccess: () => {
+      setMutationError(null);
+      toast.success("来源已删除");
+      queryClient.invalidateQueries({ queryKey: ["sources"] });
+      queryClient.invalidateQueries({ queryKey: ["stories"] });
+      queryClient.invalidateQueries({ queryKey: ["source-health"] });
+    },
+    onError: (err: unknown) => {
+      const message = getErrorMessage(err);
+      setMutationError(message);
+      toast.error(`删除来源失败：${message}`);
+      console.error("Failed to delete source:", err);
     },
   });
 
@@ -326,6 +364,7 @@ export function SourcesPage() {
                   <th className="text-left font-medium text-text-secondary px-4 py-3">健康度</th>
                   <th className="text-left font-medium text-text-secondary px-4 py-3">上次抓取</th>
                   <th className="text-center font-medium text-text-secondary px-4 py-3">错误</th>
+                  <th className="text-left font-medium text-text-secondary px-4 py-3">最后错误</th>
                   <th className="text-right font-medium text-text-secondary px-4 py-3">操作</th>
                 </tr>
               </thead>
@@ -334,11 +373,16 @@ export function SourcesPage() {
                   const health = getSourceHealth(source);
                   const healthCfg = HEALTH_CONFIG[health];
                   const HealthIcon = healthCfg.icon;
+                  const sourceHealth = healthBySourceId.get(source.id);
+                  const latestError = sourceHealth?.latest_error;
                   const isFetching =
                     fetchMutation.isPending && fetchMutation.variables === source.id;
                   const isToggling =
                     toggleMutation.isPending &&
                     toggleMutation.variables?.id === source.id;
+                  const isDeleting =
+                    deleteMutation.isPending &&
+                    deleteMutation.variables === source.id;
 
                   return (
                     <tr
@@ -395,15 +439,13 @@ export function SourcesPage() {
                         )}
                       </td>
                       <td className="px-4 py-3">
-                        <a
-                          href={source.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-accent hover:underline truncate max-w-[200px] inline-block"
+                        <button
+                          onClick={() => openExternal(source.url)}
+                          className="text-left text-accent hover:underline truncate max-w-[200px] inline-block"
                           title={source.url}
                         >
                           {source.url}
-                        </a>
+                        </button>
                       </td>
                       <td className="px-4 py-3">
                         <span
@@ -446,6 +488,15 @@ export function SourcesPage() {
                           {source.error_count}
                         </span>
                       </td>
+                      <td className="px-4 py-3 text-text-secondary">
+                        {latestError ? (
+                          <span className="text-xs text-red-600 truncate max-w-[200px] inline-block" title={latestError}>
+                            {latestError}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-text-secondary">-</span>
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-right">
                         <div className="inline-flex items-center gap-2">
                           <button
@@ -485,6 +536,23 @@ export function SourcesPage() {
                               className={clsx("w-3.5 h-3.5", isFetching && "animate-spin")}
                             />
                             <span className="hidden sm:inline">立即抓取</span>
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (window.confirm(`确定要删除来源 "${source.name}" 吗？相关文章与抓取日志也会被一并删除。`)) {
+                                deleteMutation.mutate(source.id);
+                              }
+                            }}
+                            disabled={isDeleting}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-background border border-border text-red-600 hover:border-red-200 hover:bg-red-50 transition-colors disabled:opacity-50"
+                            title="删除"
+                          >
+                            {isDeleting ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <Trash2 className="w-3.5 h-3.5" />
+                            )}
+                            <span className="hidden sm:inline">删除</span>
                           </button>
                         </div>
                       </td>

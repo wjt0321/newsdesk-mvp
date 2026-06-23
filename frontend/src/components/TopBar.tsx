@@ -1,5 +1,6 @@
 import { RefreshCw, Search } from "lucide-react";
 import { useQuery, useQueryClient, useIsFetching } from "@tanstack/react-query";
+import { toast } from "sonner";
 import clsx from "clsx";
 import { useDashboardContext } from "../hooks/useDashboardContext";
 import { listSources } from "../api/sources";
@@ -37,12 +38,13 @@ export function TopBar() {
   const health = computeSourceHealth(sources);
 
   function handleRefresh() {
-    queryClient.invalidateQueries({ queryKey: ["stories"] });
-    queryClient.invalidateQueries({ queryKey: ["sources"] });
-    queryClient.invalidateQueries({ queryKey: ["source-health"] });
-    queryClient.invalidateQueries({ queryKey: ["watch-rules"] });
-    queryClient.invalidateQueries({ queryKey: ["channels"] });
-    queryClient.invalidateQueries({ queryKey: ["briefing"] });
+    toast.info("正在刷新数据...");
+    queryClient.refetchQueries({ queryKey: ["stories"] });
+    queryClient.refetchQueries({ queryKey: ["sources"] });
+    queryClient.refetchQueries({ queryKey: ["source-health"] });
+    queryClient.refetchQueries({ queryKey: ["watch-rules"] });
+    queryClient.refetchQueries({ queryKey: ["channels"] });
+    queryClient.refetchQueries({ queryKey: ["briefing"] });
   }
 
   return (

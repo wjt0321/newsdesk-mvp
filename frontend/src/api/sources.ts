@@ -22,7 +22,7 @@ export function deleteSource(id: number) {
 }
 
 export function triggerFetch(id: number) {
-  return api.post<FetchLog>(`/sources/${id}/fetch`).then((res) => res.data);
+  return api.post<FetchLog>(`/sources/${id}/fetch?background=true`).then((res) => res.data);
 }
 
 export function listSourceHealth() {

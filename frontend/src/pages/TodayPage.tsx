@@ -71,7 +71,8 @@ import { TextFeed } from "../components/TextFeed";
 import { RisingNow } from "../components/RisingNow";
 import { StoryDrawer } from "../components/StoryDrawer";
 import { HealthStats } from "../components/HealthStats";
-import { Loader2, AlertCircle, RotateCcw, Newspaper, PlusCircle } from "lucide-react";
+import { Loader2, AlertCircle, RotateCcw, Newspaper, PlusCircle, RefreshCw } from "lucide-react";
+import { toast } from "sonner";
 import { useDashboardContext } from "../hooks/useDashboardContext";
 
 function storyMatchesQuery(story: Story, query: string) {
@@ -124,12 +125,13 @@ export function TodayPage() {
   ).slice(0, 6);
 
   function handleRetry() {
-    queryClient.invalidateQueries({ queryKey: ["stories"] });
-    queryClient.invalidateQueries({ queryKey: ["sources"] });
-    queryClient.invalidateQueries({ queryKey: ["source-health"] });
-    queryClient.invalidateQueries({ queryKey: ["watch-rules"] });
-    queryClient.invalidateQueries({ queryKey: ["channels"] });
-    queryClient.invalidateQueries({ queryKey: ["briefing"] });
+    toast.info("正在刷新数据...");
+    queryClient.refetchQueries({ queryKey: ["stories"] });
+    queryClient.refetchQueries({ queryKey: ["sources"] });
+    queryClient.refetchQueries({ queryKey: ["source-health"] });
+    queryClient.refetchQueries({ queryKey: ["watch-rules"] });
+    queryClient.refetchQueries({ queryKey: ["channels"] });
+    queryClient.refetchQueries({ queryKey: ["briefing"] });
   }
 
   if (isLoading) {
@@ -185,6 +187,14 @@ export function TodayPage() {
               : "暂无报道"}
           </p>
         </div>
+        <button
+          onClick={handleRetry}
+          className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium bg-background border border-border rounded-lg hover:bg-surface transition-colors"
+          title="刷新"
+        >
+          <RefreshCw className="w-4 h-4" />
+          刷新
+        </button>
       </div>
 
       <HealthStats />
