@@ -36,6 +36,11 @@ frontend/src-tauri/target/
 frontend/src-tauri/gen/schemas/
 frontend/src-tauri/sidecars/*.exe
 
+# PyInstaller backend sidecar build artifacts
+backend/build/
+backend/dist/
+backend/pyinstaller_entry.py
+
 # Runtime data and local databases
 backend/data/*.db
 backend/data/*.db-*
