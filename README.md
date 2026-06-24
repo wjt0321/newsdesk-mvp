@@ -5,7 +5,7 @@
 ![NewsDesk 今日情报截图](./docs/screenshots/newsdesk-today.png)
 
 > 🌐 **在线展示页**：https://wjt0321.github.io/newsdesk-mvp  
-> ⬇️ **下载最新 Windows 安装包**：<a href="https://github.com/wjt0321/newsdesk-mvp/releases/download/v0.1.0/NewsDesk_0.1.0_x64-setup.exe" download>NewsDesk_0.1.0_x64-setup.exe</a>
+> ⬇️ **下载最新 Windows 安装包**：[打开 Release 下载页](https://github.com/wjt0321/newsdesk-mvp/releases/tag/v0.1.0)（Assets 中选择 `NewsDesk_0.1.0_x64-setup.exe`；若直链超时，请从 Release 页面手动下载）
 
 ---
 
@@ -189,7 +189,7 @@ npm run tauri:build
 `scripts/build_backend_exe.py` 会调用 PyInstaller 生成独立可执行文件，并自动复制到 `frontend/src-tauri/sidecars/`。构建完成后：
 
 - 可直接运行的二进制：`frontend/src-tauri/target/release/newsdesk.exe`
-- 可分发的安装包：[NewsDesk_0.1.0_x64-setup.exe](https://github.com/wjt0321/newsdesk-mvp/releases/download/v0.1.0/NewsDesk_0.1.0_x64-setup.exe)（已上传至 GitHub Releases）
+- 可分发的安装包：见 [NewsDesk v0.1.0 Release](https://github.com/wjt0321/newsdesk-mvp/releases/tag/v0.1.0) 的 Assets；直链下载在部分网络下可能超时，优先从 Release 页面手动下载。
 
 ---
 
