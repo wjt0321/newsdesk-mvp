@@ -44,6 +44,7 @@ newsdesk-mvp/
 │   │   ├── services/        # 业务逻辑（抓取、聚类、序列化、调度）
 │   │   ├── utils/time.py    # UTC 时间工具（处理 SQLite naive datetime）
 │   │   └── seed.py          # 默认来源种子
+│   ├── scripts/             # 源验证、导入、构建 sidecar 等工具脚本
 │   ├── tests/               # pytest 测试
 │   └── pyproject.toml
 ├── frontend/                # React 前端
@@ -78,6 +79,22 @@ python -m venv .venv
 ```
 
 后端默认使用 `backend/data/newsdesk.db`（SQLite）。首次启动会自动建表并写入 5 条示例来源。
+
+### 真实源集合与饱和测试
+
+项目维护一份经过验证的真实订阅源清单，用于 dogfood 和饱和测试：
+
+- `real-sources-v2.md`：39 个验证可用的 RSS / RSSHub 源，覆盖国内时政/财经/科技/AI、国际综合/科技/AI、游戏、科学、视频文化。
+- `real-sources-v1.md`：旧版清单（已有多数源失效，仅保留记录）。
+
+一键导入并抓取全部 v2 源：
+
+```bash
+cd backend
+.venv/Scripts/python scripts/import_curated_sources.py --clear
+```
+
+该脚本会清空现有 sources / articles / stories / fetch_logs，写入 39 个源并执行一轮抓取。最近一次运行的结果：39/39 源成功，新增 1134 篇文章，其中 59.3% 携带封面图片，Today 首页 Hero / Visual 卡片可正常显示图片。
 
 ### AI 摘要（可选增强能力）
 
@@ -207,6 +224,7 @@ npm run tauri:build
 11. **Story 状态**：`story_status()` 增加 `breaking`（30 分钟内首次出现）和 `hot`（heat_score >= 50），让前端 `StoryCard` 中的红底/琥珀底状态分支生效。
 12. **WatchRule 匹配阈值**：`matching_stories_for_rule()` 将关键词匹配下推到 SQL 层（`LIKE` OR 拼接），避免冷门关键词被 `limit * 3` 硬上限截断而永远返回空。
 13. **抓取异常注释**：在 `fetch_source` except 块补充注释，说明 `log` 已在开头提交、异常路径仅更新状态的意图。
+14. **订阅源治理与图片修复**：替换旧版失效源为 39 个验证可用的 RSS/RSSHub 源（含凤凰网）；为 `fetcher.py` 增加 `Accept-Encoding: gzip, deflate`，修复部分 feed 的 brotli 解码错误；Today 首页重新出现封面图片。
 
 ### 前端
 
@@ -215,6 +233,7 @@ npm run tauri:build
 3. **相对时间格式化**：`formatRelativeTime` 支持未来时间显示，并处理无效日期。
 4. **来源表单布局**：`SourcesPage` 将 7 个字段改为两行布局，并把 Language / Region 收进可折叠的“Advanced options”，减少窄屏换行混乱。
 5. **前端 README**：替换 Vite 模板说明，补充 NewsDesk 前端专用的技术栈、目录、命令和路由说明。
+6. **UI 视觉改造**：将 Today、Source Health、StoryDrawer、Briefing 等页面从“后台管理系统”风格升级为“Editorial Intelligence Desk”新闻情报工作台；新增 HeroStory、SecondaryStory、SignalBadge、SourceChips 等可复用组件；界面全部中文化；Toaster 改到底部避免遮挡阅读区。
 
 ### Tauri / 桌面壳
 
@@ -229,6 +248,7 @@ npm run tauri:build
 
 ## 已知限制
 
+- **订阅源依赖网络环境**：`real-sources-v2.md` 中部分 RSSHub 路由和海外官方 RSS 在当前网络环境下可能返回 503 或超时。如果大量源失败，可自建 RSSHub 实例或替换为本地可访问的源。
 - **Tauri 生产包**：需要先用 `scripts/build_backend_exe.py` 生成 sidecar，再运行 `npm run tauri:build`。开发模式下若未生成 sidecar，会回退到 `backend/start_backend.bat`。
 - **桌面端后端路径**：如果用户从非常规目录启动 `newsdesk.exe` 且 sidecar/backend 不在相对路径中，可能无法自动启动后端。
 - **Story 热度排序**：数据库排序使用上一次文章变更时写入的 `heat_score` 列；动态时间衰减在返回页面前重新计算，因此排序是大致热度而非实时精确热度。

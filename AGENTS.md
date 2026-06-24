@@ -21,8 +21,12 @@
   - `story_engine.py` — 去重与聚类
   - `scheduler.py` — 定时任务
   - `story_serializer.py` — Story 序列化
+  - `normalizer.py` — 文章字段与图片归一化
 - 路由：`backend/app/routers/`
 - 测试：`backend/tests/`
+- 源治理脚本：`backend/scripts/`
+  - `verify_sources.py` — 批量验证 RSS/RSSHub 候选源
+  - `import_curated_sources.py` — 导入 `real-sources-v2.md` 中的 39 个验证源
 - 前端入口：`frontend/src/main.tsx`、`frontend/src/App.tsx`
 - 前端 API：`frontend/src/api/`
 - Tauri Rust：`frontend/src-tauri/src/lib.rs`

@@ -32,6 +32,7 @@ def _fetch_text(url: str) -> httpx.Response:
     headers = {
         "User-Agent": _FETCH_USER_AGENT,
         "Accept": "application/rss+xml, application/atom+xml, application/xml, text/xml, */*",
+        "Accept-Encoding": "gzip, deflate",  # avoid brotli decoder bugs on some feeds
     }
     response = httpx.get(url, timeout=_FETCH_TIMEOUT, follow_redirects=True, headers=headers)
     response.raise_for_status()

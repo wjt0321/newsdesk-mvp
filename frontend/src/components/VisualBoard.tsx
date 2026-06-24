@@ -1,8 +1,10 @@
 import { useState } from "react";
 import type { Story } from "../api/types";
-import { Flame, ImageOff } from "lucide-react";
+import { ImageOff, Aperture } from "lucide-react";
+import { formatRelativeTime } from "../lib/format";
+import { SourceChips } from "./news/SourceChips";
+import { SignalGroup } from "./news/SignalBadge";
 import clsx from "clsx";
-import { formatStoryStatus } from "../lib/format";
 
 interface VisualBoardProps {
   stories: Story[];
@@ -22,8 +24,9 @@ export function VisualBoard({ stories, onStoryClick }: VisualBoardProps) {
   return (
     <section>
       <div className="flex items-center gap-2 mb-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-text-secondary">
-          视觉看板
+        <Aperture className="w-4 h-4 text-text-tertiary" />
+        <h2 className="text-xs font-semibold uppercase tracking-wider text-text-secondary">
+          图片焦点
         </h2>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -43,57 +46,66 @@ interface VisualCardProps {
 function VisualCard({ story, onStoryClick }: VisualCardProps) {
   const [fallback, setFallback] = useState(false);
   const coverImage = story.articles.find((article) => article.image_url)?.image_url;
+  const hasImage = !!coverImage && !fallback;
 
   return (
-    <button
+    <article
       onClick={() => onStoryClick(story)}
-      className="group relative aspect-[16/10] rounded-xl overflow-hidden border border-border shadow-sm hover:shadow-md transition-all text-left"
-    >
-      {coverImage && !fallback ? (
-        <img
-          src={coverImage}
-          alt={story.short_title || story.canonical_title}
-          className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-          loading="lazy"
-          onError={() => setFallback(true)}
-        />
-      ) : (
-        <div className="absolute inset-0 bg-surface flex flex-col items-center justify-center p-6 text-center">
-          <ImageOff className="w-8 h-8 text-text-secondary mb-2" />
-          <p className="text-sm font-medium text-text-primary line-clamp-2">
-            {story.short_title || story.canonical_title}
-          </p>
-        </div>
+      className={clsx(
+        "group cursor-pointer rounded-xl overflow-hidden border border-border transition-all duration-200 hover:shadow-md hover:border-accent/20 text-left",
+        !hasImage && "bg-surface p-4"
       )}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
-      <div className="absolute inset-0 p-4 flex flex-col justify-end">
-        <h3 className="font-semibold text-white leading-snug line-clamp-2 mb-1.5 drop-shadow-sm">
-          {story.short_title || story.canonical_title}
-        </h3>
-        <div className="flex items-center justify-between text-xs text-white/90">
-          <span>{story.source_count} 来源</span>
-          <span className="flex items-center gap-1">
-            <Flame className="w-3 h-3 text-amber" />
-            {story.heat_score.toFixed(1)}
-          </span>
+    >
+      {hasImage ? (
+        <div className="relative aspect-[16/10]">
+          <img
+            src={coverImage}
+            alt={story.short_title || story.canonical_title}
+            className="absolute inset-0 w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-500"
+            loading="lazy"
+            onError={() => setFallback(true)}
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+          <div className="absolute inset-0 p-4 flex flex-col justify-end">
+            <VisualContent story={story} variant="overlay" />
+          </div>
         </div>
-      </div>
-      <span
+      ) : (
+        <VisualContent story={story} variant="light" />
+      )}
+    </article>
+  );
+}
+
+function VisualContent({ story, variant }: { story: Story; variant: "overlay" | "light" }) {
+  const textPrimary = variant === "overlay" ? "text-white" : "text-text-primary";
+  const textSecondary = variant === "overlay" ? "text-white/80" : "text-text-secondary";
+
+  return (
+    <div className="space-y-2">
+      <h3
         className={clsx(
-          "absolute top-3 right-3 text-[10px] px-1.5 py-0.5 rounded-full font-medium",
-          story.status === "breaking"
-            ? "bg-red-500 text-white"
-            : story.status === "hot"
-            ? "bg-amber-500 text-white"
-            : story.status === "new"
-            ? "bg-green-500 text-white"
-            : story.status === "developing"
-            ? "bg-blue-500 text-white"
-            : "bg-white/90 text-text-primary"
+          "font-semibold leading-snug line-clamp-2 text-balance",
+          variant === "overlay" ? "text-base" : "text-sm",
+          textPrimary
         )}
       >
-        {formatStoryStatus(story.status)}
-      </span>
-    </button>
+        {story.short_title || story.canonical_title}
+      </h3>
+      <SourceChips
+        names={story.source_names}
+        max={3}
+        className={variant === "overlay" ? "[&>span]:bg-white/10 [&>span]:border-white/20 [&>span]:text-white/90" : ""}
+      />
+      <div className={clsx("flex items-center justify-between", textSecondary)}>
+        <SignalGroup
+          story={story}
+          className={variant === "overlay" ? "text-white/80 [&_.text-amber]:text-amber-300" : ""}
+        />
+        <span className={clsx("text-[11px] tabular-nums", variant === "overlay" ? "text-white/70" : "text-text-tertiary")}>
+          {formatRelativeTime(story.last_updated_at)}
+        </span>
+      </div>
+    </div>
   );
 }

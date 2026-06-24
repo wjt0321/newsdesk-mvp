@@ -3,13 +3,32 @@ import { Link } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { listStories } from "../api/stories";
 import type { Story } from "../api/types";
+import { HeroStory } from "../components/news/HeroStory";
+import { SecondaryStory } from "../components/news/SecondaryStory";
+import { StoryCard } from "../components/StoryCard";
+import { StoryDrawer } from "../components/StoryDrawer";
+import { RisingNow } from "../components/RisingNow";
+import { HealthStats } from "../components/HealthStats";
+import { SectionHeader } from "../components/ui/SectionHeader";
+import { EmptyState } from "../components/ui/EmptyState";
+import {
+  Loader2,
+  AlertCircle,
+  RotateCcw,
+  Newspaper,
+  PlusCircle,
+  TrendingUp,
+  AlertTriangle,
+  Clock,
+} from "lucide-react";
+import { toast } from "sonner";
+import { useDashboardContext } from "../hooks/useDashboardContext";
 
 function primarySourceName(story: Story): string {
   return story.source_names[0] || "未知";
 }
 
 function applySourceDiversity(stories: Story[], maxSameSource: number = 2): Story[] {
-  // Greedy reorder so no source appears more than maxSameSource times consecutively.
   const remaining = [...stories];
   const result: Story[] = [];
   let consecutiveSameSource = 0;
@@ -17,7 +36,6 @@ function applySourceDiversity(stories: Story[], maxSameSource: number = 2): Stor
 
   while (remaining.length > 0) {
     let pickedIdx = 0;
-    // If we would exceed the limit, find a story from a different source.
     if (lastSource && consecutiveSameSource >= maxSameSource) {
       const differentIdx = remaining.findIndex((s) => primarySourceName(s) !== lastSource);
       if (differentIdx >= 0) {
@@ -40,40 +58,23 @@ function applySourceDiversity(stories: Story[], maxSameSource: number = 2): Stor
 }
 
 function scoreForTodaySort(story: Story): number {
-  // Composite score for Today page sorting.
-  // High-confidence, multi-source stories with high heat rank first.
-  // Single-article, low-confidence stories are deprioritized unless they are hot.
   let score = story.heat_score;
 
-  // Confidence penalty.
   if (story.needs_review) {
     score -= 50;
   }
   if (story.confidence < 0.7) {
     score -= 20;
   }
-
-  // Multi-source bonus.
   if (story.source_count >= 2) {
     score += 10;
   }
-
-  // Single-article penalty unless the story is hot.
   if (story.article_count === 1 && story.heat_score < 50) {
     score -= 15;
   }
 
   return score;
 }
-import { FocusStrip } from "../components/FocusStrip";
-import { VisualBoard } from "../components/VisualBoard";
-import { TextFeed } from "../components/TextFeed";
-import { RisingNow } from "../components/RisingNow";
-import { StoryDrawer } from "../components/StoryDrawer";
-import { HealthStats } from "../components/HealthStats";
-import { Loader2, AlertCircle, RotateCcw, Newspaper, PlusCircle, RefreshCw } from "lucide-react";
-import { toast } from "sonner";
-import { useDashboardContext } from "../hooks/useDashboardContext";
 
 function storyMatchesQuery(story: Story, query: string) {
   if (!query.trim()) return true;
@@ -82,6 +83,18 @@ function storyMatchesQuery(story: Story, query: string) {
     story.canonical_title.toLowerCase().includes(q) ||
     (story.short_title && story.short_title.toLowerCase().includes(q))
   );
+}
+
+function sourceDominanceWarning(stories: Story[]): { source: string; ratio: number } | null {
+  if (stories.length === 0) return null;
+  const counts = new Map<string, number>();
+  stories.slice(0, 20).forEach((s) => {
+    const name = primarySourceName(s);
+    counts.set(name, (counts.get(name) || 0) + 1);
+  });
+  const [topSource, topCount] = [...counts.entries()].sort((a, b) => b[1] - a[1])[0] || ["", 0];
+  const ratio = topCount / Math.min(stories.length, 20);
+  return ratio > 0.3 ? { source: topSource, ratio } : null;
 }
 
 export function TodayPage() {
@@ -113,21 +126,22 @@ export function TodayPage() {
     (story) => !story.needs_review && story.confidence >= 0.7
   );
 
-  const focusStories = applySourceDiversity(highConfidenceStories, 2).slice(0, 5);
-  // Show the top high-confidence stories in the visual board. Stories with a
-  // cover image are shown first; the VisualBoard already renders a text-only
-  // placeholder for stories without images, so the board is never empty.
-  const visualStories = applySourceDiversity(
-    [...highConfidenceStories].sort(
-      (a, b) => Number(b.articles.some((article) => article.image_url)) - Number(a.articles.some((article) => article.image_url))
-    ),
-    2
-  ).slice(0, 8);
-  const textStories = applySourceDiversity(sortedByQuality, 3).slice(0, 40);
+  const focusStories = applySourceDiversity(highConfidenceStories, 2);
+  const heroStory = focusStories[0] || null;
+  const secondaryStories = focusStories.slice(1, 4);
+
   const risingStories = applySourceDiversity(
     sortedByQuality.filter((story) => story.status === "new" || story.status === "developing"),
     2
   ).slice(0, 6);
+
+  const moreStories = applySourceDiversity(sortedByQuality, 3).slice(0, 20);
+
+  const pendingReview = sortedByQuality
+    .filter((story) => story.needs_review || story.confidence < 0.7)
+    .slice(0, 5);
+
+  const dominance = useMemo(() => sourceDominanceWarning(sortedByQuality), [sortedByQuality]);
 
   function handleRetry() {
     toast.info("正在刷新数据...");
@@ -154,24 +168,26 @@ export function TodayPage() {
       (error.message.includes("Network Error") || error.message.includes("ERR_CONNECTION_REFUSED"));
 
     return (
-      <div className="max-w-7xl mx-auto">
-        <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
-          <AlertCircle className="w-8 h-8 text-red-600 mx-auto mb-3" />
-          <h3 className="text-lg font-semibold text-red-800 mb-1">
+      <div className="p-6">
+        <div className="max-w-2xl mx-auto bg-surface border border-danger/20 rounded-2xl p-8 text-center">
+          <AlertCircle className="w-8 h-8 text-danger mx-auto mb-3" />
+          <h3 className="text-lg font-semibold text-text-primary mb-1">
             加载今日简报失败
           </h3>
-          <p className="text-sm text-red-700 mb-2">
+          <p className="text-sm text-text-secondary mb-2">
             {error instanceof Error ? error.message : "出了点问题，请重试。"}
           </p>
           {isConnectionError && (
-            <p className="text-xs text-red-600 mb-4">
+            <p className="text-xs text-text-tertiary mb-4">
               看起来后端未运行。请使用以下命令启动：{" "}
-              <code className="bg-red-100 px-1 py-0.5 rounded">backend/.venv/Scripts/python -m uvicorn app.main:app</code>
+              <code className="bg-surface-subtle px-1.5 py-0.5 rounded">
+                backend/.venv/Scripts/python -m uvicorn app.main:app
+              </code>
             </p>
           )}
           <button
             onClick={handleRetry}
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-danger text-white rounded-lg hover:bg-danger/90 transition-colors"
           >
             <RotateCcw className="w-4 h-4" />
             重试
@@ -181,72 +197,141 @@ export function TodayPage() {
     );
   }
 
-  return (
-    <div className="max-w-7xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h2 className="text-2xl font-semibold">今日</h2>
-          <p className="text-sm text-text-secondary">
-            {filteredStories.length > 0
-              ? `当前周期内 ${filteredStories.length} 条报道`
-              : "暂无报道"}
-          </p>
+  if (filteredStories.length === 0 && !isLoading) {
+    return (
+      <div className="p-6">
+        <PageHeader />
+        <div className="max-w-2xl mx-auto mt-6">
+          <EmptyState
+            icon={Newspaper}
+            title="暂无报道"
+            description="添加几个 RSS 来源并运行抓取，即可开始查看简报。如果已有来源，请等待下次定时抓取或手动触发。"
+          >
+            <div className="flex items-center justify-center gap-3">
+              <Link
+                to="/sources"
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-accent text-white rounded-lg hover:bg-accent/90 transition-colors"
+              >
+                <PlusCircle className="w-4 h-4" />
+                添加来源
+              </Link>
+              <button
+                onClick={handleRetry}
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-surface-subtle border border-border text-text-primary rounded-lg hover:bg-surface transition-colors"
+              >
+                <RotateCcw className="w-4 h-4" />
+                刷新
+              </button>
+            </div>
+          </EmptyState>
         </div>
-        <button
-          onClick={handleRetry}
-          className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium bg-background border border-border rounded-lg hover:bg-surface transition-colors"
-          title="刷新"
-        >
-          <RefreshCw className="w-4 h-4" />
-          刷新
-        </button>
       </div>
+    );
+  }
 
-      <HealthStats />
+  return (
+    <div className="p-6">
+      <PageHeader count={filteredStories.length} />
 
-      {filteredStories.length === 0 && !isLoading && (
-        <div className="bg-surface border border-border rounded-xl p-8 text-center mb-6">
-          <Newspaper className="w-10 h-10 text-text-secondary mx-auto mb-3" />
-          <h3 className="text-lg font-semibold text-text-primary mb-1">
-            暂无报道
-          </h3>
-          <p className="text-sm text-text-secondary mb-4 max-w-md mx-auto">
-            添加几个 RSS 来源并运行抓取，即可开始查看简报。
-            如果已有来源，请等待下次定时抓取或手动触发。
+      {dominance && (
+        <div className="mb-5 bg-amber/5 border border-amber/20 rounded-xl px-4 py-3 flex items-start gap-3">
+          <AlertTriangle className="w-4 h-4 text-amber flex-shrink-0 mt-0.5" />
+          <p className="text-sm text-text-secondary">
+            <span className="font-medium text-text-primary">{dominance.source}</span>{" "}
+            在 Top 20 中占比 {Math.round(dominance.ratio * 100)}%，建议关注来源多样性。
           </p>
-          <div className="flex items-center justify-center gap-3">
-            <Link
-              to="/sources"
-              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-accent text-white rounded-lg hover:bg-accent/90 transition-colors"
-            >
-              <PlusCircle className="w-4 h-4" />
-              添加来源
-            </Link>
-            <button
-              onClick={handleRetry}
-              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-background border border-border rounded-lg hover:bg-surface transition-colors"
-            >
-              <RotateCcw className="w-4 h-4" />
-              刷新
-            </button>
-          </div>
         </div>
       )}
 
-      <FocusStrip stories={focusStories} onStoryClick={setSelectedStory} />
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+        <div className="xl:col-span-8 space-y-8">
+          {heroStory && (
+            <section>
+              <SectionHeader title="今日重点" icon={TrendingUp} />
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                <div className="lg:col-span-7">
+                  <HeroStory story={heroStory} onClick={() => setSelectedStory(heroStory)} />
+                </div>
+                <div className="lg:col-span-5 flex flex-col gap-3">
+                  {secondaryStories.map((story) => (
+                    <SecondaryStory
+                      key={story.id}
+                      story={story}
+                      onClick={() => setSelectedStory(story)}
+                    />
+                  ))}
+                </div>
+              </div>
+            </section>
+          )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-        <div className="lg:col-span-2">
-          <VisualBoard stories={visualStories} onStoryClick={setSelectedStory} />
+          <RisingNow stories={risingStories} onStoryClick={setSelectedStory} />
+
+          <section>
+            <SectionHeader title="更多新闻" icon={Clock} />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {moreStories.map((story) => (
+                <StoryCard
+                  key={story.id}
+                  story={story}
+                  variant="compact"
+                  onClick={() => setSelectedStory(story)}
+                />
+              ))}
+            </div>
+          </section>
         </div>
-        <div className="lg:col-span-3">
-          <TextFeed stories={textStories} onStoryClick={setSelectedStory} />
-        </div>
+
+        <aside className="xl:col-span-4 space-y-6">
+          <HealthStats />
+
+          {pendingReview.length > 0 && (
+            <section className="bg-surface border border-border rounded-2xl p-5">
+              <SectionHeader title="待复核" icon={AlertTriangle} />
+              <div className="space-y-3">
+                {pendingReview.map((story) => (
+                  <button
+                    key={story.id}
+                    onClick={() => setSelectedStory(story)}
+                    className="w-full text-left group"
+                  >
+                    <p className="text-sm font-medium text-text-primary line-clamp-2 group-hover:text-accent transition-colors">
+                      {story.short_title || story.canonical_title}
+                    </p>
+                    <p className="text-xs text-text-tertiary mt-1">
+                      {story.needs_review ? "需审核" : `置信度 ${(story.confidence * 100).toFixed(0)}%`}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
+        </aside>
       </div>
 
-      <RisingNow stories={risingStories} onStoryClick={setSelectedStory} />
-
       <StoryDrawer story={selectedStory} onClose={() => setSelectedStory(null)} />
+    </div>
+  );
+}
+
+function PageHeader({ count }: { count?: number }) {
+  const today = new Date().toLocaleDateString("zh-CN", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  });
+
+  return (
+    <div className="mb-6">
+      <p className="text-xs font-medium uppercase tracking-wider text-text-tertiary mb-1">
+        {today}
+      </p>
+      <h1 className="text-2xl font-semibold text-text-primary">今日情报</h1>
+      {typeof count === "number" && (
+        <p className="text-sm text-text-secondary mt-1">
+          当前周期内 {count} 条报道
+        </p>
+      )}
     </div>
   );
 }

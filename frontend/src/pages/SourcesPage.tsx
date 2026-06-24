@@ -326,7 +326,7 @@ export function SourcesPage() {
             />
             <input
               type="url"
-              placeholder="URL"
+              placeholder="链接"
               value={form.url}
               onChange={(e) => setForm({ ...form, url: e.target.value })}
               className="px-3 py-2 text-sm bg-background border border-border rounded-lg outline-none focus:border-accent"
@@ -445,7 +445,7 @@ export function SourcesPage() {
                   <th className="text-left font-medium text-text-secondary px-4 py-3">
                     <SortHeader label="分类" active={sortKey === "category"} desc={sortDesc} onClick={() => handleSort("category")} />
                   </th>
-                  <th className="text-left font-medium text-text-secondary px-4 py-3">URL</th>
+                  <th className="text-left font-medium text-text-secondary px-4 py-3">链接</th>
                   <th className="text-left font-medium text-text-secondary px-4 py-3">状态</th>
                   <th className="text-left font-medium text-text-secondary px-4 py-3">健康度</th>
                   <th className="text-left font-medium text-text-secondary px-4 py-3">上次抓取</th>

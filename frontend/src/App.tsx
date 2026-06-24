@@ -23,7 +23,7 @@ function App() {
           <Route path="briefing" element={<BriefingPage />} />
         </Route>
       </Routes>
-      <Toaster position="top-right" richColors closeButton />
+      <Toaster position="bottom-right" richColors closeButton />
     </>
   );
 }

@@ -8,7 +8,7 @@
 
 - 仓库：`D:/news-aggregator-plan/newsdesk-mvp`
 - 已完成阶段：后端核心、Story 聚类、React 看板、频道/关注规则、Tauri Windows 桌面壳。
-- 当前状态：已完成一轮代码审核与 bug 修复（级联删除、时区查询、分页、频道关键词、Tauri 生命周期等），45 项后端测试、烟测、前端构建、Tauri cargo check 全部通过。
+- 当前状态：已完成一轮代码审核与 bug 修复（级联删除、时区查询、分页、频道关键词、Tauri 生命周期等）；完成前端“Editorial Intelligence Desk”视觉改造与界面中文化；完成订阅源治理 v2（39 个验证可用源，含凤凰网，59.3% 文章带图）。后端 90 项测试通过，前端 lint/build 通过，Tauri cargo check 与分发构建通过。
 
 ---
 

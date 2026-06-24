@@ -1,5 +1,7 @@
 import type { Story } from "../api/types";
 import { StoryCard } from "./StoryCard";
+import { SectionHeader } from "./ui/SectionHeader";
+import { Newspaper } from "lucide-react";
 
 interface TextFeedProps {
   stories: Story[];
@@ -17,12 +19,8 @@ export function TextFeed({ stories, onStoryClick }: TextFeedProps) {
 
   return (
     <section className="flex flex-col h-full">
-      <div className="flex items-center gap-2 mb-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-text-secondary">
-          报道流
-        </h2>
-      </div>
-      <div className="flex flex-col gap-2 overflow-auto">
+      <SectionHeader title="报道流" icon={Newspaper} />
+      <div className="flex flex-col gap-3 overflow-auto">
         {stories.map((story) => (
           <StoryCard
             key={story.id}

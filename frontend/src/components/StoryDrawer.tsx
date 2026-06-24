@@ -1,11 +1,25 @@
 import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 import type { Story } from "../api/types";
-import { X, ExternalLink, Clock, Flame, Newspaper, Calendar, GitMerge, AlertTriangle, Diff } from "lucide-react";
+import {
+  X,
+  ExternalLink,
+  Clock,
+  Calendar,
+  GitMerge,
+  AlertTriangle,
+  Diff,
+  CheckCircle2,
+  Copy,
+} from "lucide-react";
 import clsx from "clsx";
 import { formatRelativeTime, formatStoryStatus } from "../lib/format";
 import { openExternal } from "../lib/openExternal";
 import { listSources } from "../api/sources";
 import { api } from "../api/client";
+import { SourceChips } from "./news/SourceChips";
+import { SignalBadge } from "./news/SignalBadge";
+import { toast } from "sonner";
 
 interface StoryDrawerProps {
   story: Story | null;
@@ -47,11 +61,41 @@ function useStoryDiff(storyId: number | undefined) {
   });
 }
 
+function generatePlaceholderSummary(story: Story): string {
+  // Transparent placeholder when no AI summary is available.
+  const sourceText =
+    story.source_names.length > 1
+      ? `${story.source_names.slice(0, 3).join("、")} 等 ${story.source_names.length} 个来源`
+      : story.source_names[0] || "未知来源";
+
+  return `【占位摘要 · 待生成】目前 ${sourceText} 报道了此事。系统根据标题与来源判断这是一条${formatStoryStatus(
+    story.status
+  )}事件，置信度 ${(story.confidence * 100).toFixed(0)}%。打开下方原始文章可查看完整报道。`;
+}
+
 export function StoryDrawer({ story, onClose }: StoryDrawerProps) {
   const sourceNameById = useSourceNameLookup();
   const { data: diff } = useStoryDiff(story?.id);
 
+  const summary = useMemo(() => {
+    if (!story) return "";
+    // Prefer a synthesized summary if any article has one; otherwise transparent placeholder.
+    const candidate =
+      story.articles.find((a) => a.summary_raw)?.summary_raw ||
+      story.articles.find((a) => a.content_text)?.content_text?.slice(0, 240);
+    return candidate || generatePlaceholderSummary(story);
+  }, [story]);
+
+  async function handleCopy(text: string) {
+    await navigator.clipboard.writeText(text);
+    toast.success("已复制到剪贴板");
+  }
+
   if (!story) return null;
+
+  const briefText = `${story.short_title || story.canonical_title}\n来源：${story.source_names.join(
+    "、"
+  )}\n更新：${formatRelativeTime(story.last_updated_at)}`;
 
   return (
     <>
@@ -60,149 +104,126 @@ export function StoryDrawer({ story, onClose }: StoryDrawerProps) {
         onClick={onClose}
         aria-hidden="true"
       />
-      <aside className="fixed inset-y-0 right-0 w-full max-w-md bg-surface border-l border-border shadow-2xl z-50 flex flex-col">
-        <div className="h-14 border-b border-border flex items-center justify-between px-5 flex-shrink-0">
-          <h2 className="font-semibold truncate pr-4">报道详情</h2>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-md hover:bg-background transition-colors"
-            aria-label="关闭"
-          >
-            <X className="w-5 h-5" />
-          </button>
+      <aside className="fixed inset-y-0 right-0 w-full max-w-lg bg-surface border-l border-border shadow-xl z-50 flex flex-col">
+        <div className="h-14 border-b border-border flex items-center justify-between px-5 flex-shrink-0 bg-surface">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-text-secondary">故事简报</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => handleCopy(briefText)}
+              className="p-1.5 rounded-md hover:bg-surface-subtle text-text-secondary hover:text-text-primary transition-colors"
+              aria-label="复制简报"
+              title="复制简报"
+            >
+              <Copy className="w-4 h-4" />
+            </button>
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-md hover:bg-surface-subtle text-text-secondary hover:text-text-primary transition-colors"
+              aria-label="关闭"
+              title="关闭"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
-        <div className="flex-1 overflow-auto p-5 space-y-6">
-          <div>
-            <span
-              className={clsx(
-                "inline-block text-xs px-2 py-0.5 rounded-full font-medium mb-3",
-                story.status === "breaking"
-                  ? "bg-red-100 text-red-700"
-                  : story.status === "hot"
-                  ? "bg-amber-100 text-amber-700"
-                  : story.status === "new"
-                  ? "bg-green-100 text-green-700"
-                  : story.status === "developing"
-                  ? "bg-blue-100 text-blue-700"
-                  : "bg-gray-100 text-text-secondary"
-              )}
-            >
-              {formatStoryStatus(story.status)}
-            </span>
-            <h3 className="text-xl font-semibold leading-snug">
+        <div className="flex-1 overflow-auto p-6 space-y-6">
+          <header className="space-y-4">
+            <div className="flex items-center gap-2 flex-wrap">
+              <StatusBadge story={story} />
+              <SourceChips names={story.source_names} max={6} />
+            </div>
+
+            <h2 className="text-2xl font-semibold text-text-primary leading-tight text-balance">
               {story.canonical_title}
-            </h3>
+            </h2>
+
             {story.short_title && story.short_title !== story.canonical_title && (
-              <p className="text-sm text-text-secondary mt-1">
+              <p className="text-base text-text-secondary leading-relaxed">
                 {story.short_title}
               </p>
             )}
-          </div>
 
-          <div className="grid grid-cols-3 gap-3 text-sm">
-            <div className="bg-background rounded-lg p-3">
-              <div className="text-text-secondary text-xs flex items-center gap-1">
-                <Newspaper className="w-3 h-3" />
-                来源
-              </div>
-              <div className="font-semibold mt-0.5">{story.source_count}</div>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-text-secondary">
+              <SignalBadge type="sources" value={story.source_count} />
+              <SignalBadge type="articles" value={story.article_count} />
+              <SignalBadge type="heat" value={story.heat_score.toFixed(1)} />
+              <span className="inline-flex items-center gap-1 text-text-tertiary">
+                <Clock className="w-3 h-3" />
+                更新于 {formatRelativeTime(story.last_updated_at)}
+              </span>
             </div>
-            <div className="bg-background rounded-lg p-3">
-              <div className="text-text-secondary text-xs flex items-center gap-1">
-                <ExternalLink className="w-3 h-3" />
-                文章
-              </div>
-              <div className="font-semibold mt-0.5">{story.article_count}</div>
-            </div>
-            <div className="bg-background rounded-lg p-3">
-              <div className="text-text-secondary text-xs flex items-center gap-1">
-                <Flame className="w-3 h-3" />
-                热度
-              </div>
-              <div className="font-semibold mt-0.5">
-                {story.heat_score.toFixed(1)}
-              </div>
-            </div>
-          </div>
+          </header>
 
-          <div className="bg-background rounded-lg p-3 text-sm space-y-2">
-            <div className="flex items-center gap-2 text-text-secondary">
-              <Clock className="w-3.5 h-3.5" />
-              <span>更新于 {formatRelativeTime(story.last_updated_at)}</span>
-            </div>
-            <div className="flex items-center gap-2 text-text-secondary">
-              <Calendar className="w-3.5 h-3.5" />
-              <span>
-                首次出现{" "}
-                {new Date(story.first_seen_at).toLocaleString(undefined, {
+          <section className="bg-surface-subtle/50 rounded-2xl p-5 border border-border">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-text-tertiary mb-2">
+              一句话发生了什么
+            </h3>
+            <p className="text-[15px] leading-editorial text-text-primary">
+              {summary}
+            </p>
+          </section>
+
+          <section className="space-y-3">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-text-tertiary">
+              关键线索
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+              <MetaItem
+                icon={Calendar}
+                label="首次出现"
+                value={new Date(story.first_seen_at).toLocaleString("zh-CN", {
                   month: "short",
                   day: "numeric",
                   hour: "2-digit",
                   minute: "2-digit",
                 })}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <GitMerge className="w-3.5 h-3.5 text-text-secondary" />
-              <span className="text-text-secondary">
-                合并依据{" "}
-                <span className="font-medium text-text-primary">
-                  {story.merge_reason ?? "未知"}
-                </span>
-                {story.confidence > 0 && (
-                  <span className="ml-2">
-                    · 置信度 {(story.confidence * 100).toFixed(0)}%
-                  </span>
-                )}
-              </span>
+              />
+              <MetaItem
+                icon={GitMerge}
+                label="合并依据"
+                value={story.merge_reason ?? "未知"}
+              />
+              <MetaItem
+                icon={CheckCircle2}
+                label="置信度"
+                value={`${(story.confidence * 100).toFixed(0)}%`}
+              />
               {story.needs_review && (
-                <span className="inline-flex items-center gap-1 text-xs text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">
-                  <AlertTriangle className="w-3 h-3" />
-                  需审核
-                </span>
+                <div className="flex items-center gap-2 text-amber">
+                  <AlertTriangle className="w-4 h-4" />
+                  <span className="text-sm font-medium">需复核</span>
+                </div>
               )}
             </div>
-          </div>
+          </section>
 
-          <div>
-            <h4 className="text-sm font-semibold mb-2">来源</h4>
-            <div className="flex flex-wrap gap-2">
-              {story.source_names.map((name) => (
-                <span
-                  key={name}
-                  className="text-xs px-2 py-1 rounded-md bg-background border border-border"
-                >
-                  {name}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <h4 className="text-sm font-semibold mb-2">
-              文章 ({story.articles.length})
-            </h4>
+          <section>
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-text-tertiary mb-3">
+              原始文章
+            </h3>
             <ul className="space-y-2">
               {story.articles.map((article) => (
                 <li
                   key={article.id}
-                  className="group p-2 rounded-lg hover:bg-background transition-colors"
+                  className="group rounded-xl border border-border bg-surface-subtle/30 hover:bg-surface-subtle transition-colors"
                 >
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       openExternal(article.url);
                     }}
-                    className="flex items-start gap-2 text-left w-full"
+                    className="flex items-start gap-3 text-left w-full p-3"
                   >
-                    <ExternalLink className="w-4 h-4 text-text-secondary mt-0.5 flex-shrink-0" />
+                    <ExternalLink className="w-4 h-4 text-text-tertiary mt-0.5 flex-shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm text-accent hover:underline line-clamp-2">
+                      <p className="text-sm text-text-primary group-hover:text-accent transition-colors line-clamp-2">
                         {article.title}
                       </p>
-                      <div className="flex items-center gap-2 mt-1 text-xs text-text-secondary">
-                        <span className="font-medium">
+                      <div className="flex items-center gap-2 mt-1 text-xs text-text-tertiary">
+                        <span className="font-medium text-text-secondary">
                           {sourceNameById.get(article.source_id) || `来源 #${article.source_id}`}
                         </span>
                         {article.published_at && (
@@ -214,41 +235,97 @@ export function StoryDrawer({ story, onClose }: StoryDrawerProps) {
                 </li>
               ))}
             </ul>
-          </div>
+          </section>
 
           {diff && diff.articles.length > 1 && (
-            <div className="border-t border-border pt-4">
-              <h4 className="text-sm font-semibold mb-2 flex items-center gap-1">
+            <section className="border-t border-border pt-5">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-text-tertiary mb-3 flex items-center gap-1.5">
                 <Diff className="w-4 h-4" />
                 来源差异
-              </h4>
+              </h3>
+
               {diff.common_words.length > 0 && (
-                <div className="mb-3">
-                  <span className="text-xs text-text-secondary">共同词：</span>
-                  <div className="flex flex-wrap gap-1 mt-1">
+                <div className="mb-4">
+                  <span className="text-xs text-text-tertiary">共同关注：</span>
+                  <div className="flex flex-wrap gap-1.5 mt-1.5">
                     {diff.common_words.map((word) => (
-                      <span key={word} className="text-xs px-1.5 py-0.5 bg-background border border-border rounded">
+                      <span
+                        key={word}
+                        className="text-xs px-2 py-0.5 bg-surface-subtle border border-border rounded-md text-text-secondary"
+                      >
                         {word}
                       </span>
                     ))}
                   </div>
                 </div>
               )}
-              <ul className="space-y-2">
+
+              <ul className="space-y-3">
                 {diff.articles.map((article) => (
-                  <li key={article.article_id} className="text-sm bg-background rounded-lg p-2">
-                    <div className="font-medium text-text-primary">{article.title}</div>
-                    <div className="text-xs text-text-secondary mt-0.5">{article.source_name}</div>
+                  <li
+                    key={article.article_id}
+                    className="text-sm border-l-2 border-border pl-3 py-0.5"
+                  >
+                    <div className="font-medium text-text-primary">
+                      {article.title}
+                    </div>
+                    <div className="text-xs text-text-tertiary mt-0.5">
+                      {article.source_name}
+                    </div>
                     {article.summary && (
-                      <p className="text-xs text-text-secondary mt-1 line-clamp-3">{article.summary}</p>
+                      <p className="text-xs text-text-secondary mt-1.5 leading-relaxed line-clamp-3">
+                        {article.summary}
+                      </p>
                     )}
                   </li>
                 ))}
               </ul>
-            </div>
+            </section>
           )}
         </div>
       </aside>
     </>
+  );
+}
+
+function MetaItem({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="flex items-center gap-2">
+      <Icon className="w-4 h-4 text-text-tertiary flex-shrink-0" />
+      <div>
+        <span className="text-xs text-text-tertiary block">{label}</span>
+        <span className="text-sm text-text-primary">{value}</span>
+      </div>
+    </div>
+  );
+}
+
+function StatusBadge({ story }: { story: Story }) {
+  const isHot = story.status === "breaking" || story.status === "hot";
+  if (!isHot && !story.needs_review) return null;
+
+  return (
+    <span
+      className={clsx(
+        "inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold",
+        story.status === "breaking"
+          ? "bg-red-100 text-danger"
+          : story.status === "hot"
+          ? "bg-amber/10 text-amber"
+          : "bg-amber/10 text-amber"
+      )}
+    >
+      {story.needs_review && story.status !== "breaking" && story.status !== "hot"
+        ? "需复核"
+        : formatStoryStatus(story.status)}
+    </span>
   );
 }
