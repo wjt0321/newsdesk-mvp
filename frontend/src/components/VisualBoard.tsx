@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { Story } from "../api/types";
 import { ImageOff, Aperture } from "lucide-react";
-import { displayStoryTitle, formatRelativeTime } from "../lib/format";
+import { displayStoryTitle, formatRelativeTime, storySources } from "../lib/format";
 import { SourceChips } from "./news/SourceChips";
 import { SignalGroup } from "./news/SignalBadge";
 import clsx from "clsx";
@@ -93,8 +93,9 @@ function VisualContent({ story, variant }: { story: Story; variant: "overlay" | 
         {displayStoryTitle(story)}
       </h3>
       <SourceChips
-        names={story.source_names}
+        sources={storySources(story)}
         max={3}
+        clickable
         className={variant === "overlay" ? "[&>span]:bg-white/10 [&>span]:border-white/20 [&>span]:text-white/90" : ""}
       />
       <div className={clsx("flex items-center justify-between", textSecondary)}>

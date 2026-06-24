@@ -359,3 +359,28 @@ def test_extract_entities_cross_language_canonicalization():
     assert "nvidia" in chinese
     assert "ai" in chinese
     assert english & chinese == {"nvidia", "ai"}
+
+
+def test_stories_by_source_endpoint(client, monkeypatch):
+    created = client.post("/api/sources", json={
+        "name": "By Source Test",
+        "type": "rss",
+        "url": "http://example.com/rss",
+    })
+    assert created.status_code == 201
+    source_id = created.json()["id"]
+
+    xml = """<?xml version="1.0"?>
+<rss>
+  <channel>
+    <item><title>By Source Story</title><link>http://example.com/1</link></item>
+  </channel>
+</rss>"""
+    monkeypatch.setattr(fetcher_module.feedparser, "parse", _mock_parse(xml))
+    client.post(f"/api/sources/{source_id}/fetch")
+
+    resp = client.get(f"/api/stories/by-source/{source_id}")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data) == 1
+    assert data[0]["canonical_title"] == "By Source Story"

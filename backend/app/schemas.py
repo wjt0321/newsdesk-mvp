@@ -100,6 +100,7 @@ class ArticleRead(ArticleBase):
     hash_url: str
     hash_title: str
     status: str = "active"
+    source_name: Optional[str] = None
     clean_title: Optional[str] = None
     clean_summary: Optional[str] = None
     clean_content_text: Optional[str] = None
@@ -212,6 +213,7 @@ class StoryRead(BaseModel):
     status: str
     article_ids: List[int] = []
     source_names: List[str] = []
+    source_ids: List[int] = []
     articles: List[ArticleRead] = []
 
     @field_validator("*", mode="before")

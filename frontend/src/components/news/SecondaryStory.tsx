@@ -4,6 +4,7 @@ import {
   displayStoryTitle,
   formatRelativeTime,
   formatStoryStatus,
+  storySources,
 } from "../../lib/format";
 import { SourceChips } from "./SourceChips";
 import { SignalGroup } from "./SignalBadge";
@@ -38,7 +39,7 @@ export function SecondaryStory({ story, onClick }: SecondaryStoryProps) {
         </p>
       )}
 
-      <SourceChips names={story.source_names} max={3} />
+      <SourceChips sources={storySources(story)} max={3} clickable />
 
       <div className="mt-3 flex items-center justify-between">
         <SignalGroup story={story} />

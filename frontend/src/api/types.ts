@@ -74,6 +74,7 @@ export interface Article {
   hash_url: string;
   hash_title: string;
   status: string;
+  source_name?: string | null;
   clean_title?: string | null;
   clean_summary?: string | null;
   clean_content_text?: string | null;
@@ -107,6 +108,7 @@ export interface Story {
   status: string;
   article_ids: number[];
   source_names: string[];
+  source_ids: number[];
   articles: Article[];
 }
 

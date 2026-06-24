@@ -8,6 +8,7 @@ from .story_engine import compute_heat_score, story_status
 
 def _clean_article(article: models.Article) -> schemas.ArticleRead:
     read = schemas.ArticleRead.model_validate(article)
+    read.source_name = article.source.name if article.source else None
     read.clean_title = content_cleaner.clean_title(article.title)
     read.clean_summary = content_cleaner.clean_summary(article.summary_raw)
     read.clean_content_text = content_cleaner.clean_content_text(article.content_text)
@@ -19,6 +20,7 @@ def story_to_read(story: models.Story) -> schemas.StoryRead:
     article_ids = [link.article_id for link in article_links]
     articles = [_clean_article(link.article) for link in article_links if link.article]
     source_names = sorted({link.article.source.name for link in article_links if link.article and link.article.source})
+    source_ids = sorted({link.article.source_id for link in article_links if link.article})
     return schemas.StoryRead(
         id=story.id,
         canonical_title=story.canonical_title,
@@ -36,6 +38,7 @@ def story_to_read(story: models.Story) -> schemas.StoryRead:
         status=story_status(story),
         article_ids=article_ids,
         source_names=source_names,
+        source_ids=list(source_ids),
         articles=articles,
     )
 

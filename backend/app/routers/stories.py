@@ -66,6 +66,30 @@ def list_stories(
     return [story_to_read(story) for story in stories]
 
 
+@router.get("/by-source/{source_id}", response_model=List[schemas.StoryRead])
+def list_stories_by_source(
+    source_id: int,
+    limit: int = Query(50, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(database.get_db),
+):
+    """Return stories that contain at least one article from the given source."""
+    query = (
+        _story_query(db)
+        .join(models.Story.article_links)
+        .join(models.StoryArticleLink.article)
+        .filter(models.Article.source_id == source_id)
+        .distinct()
+    )
+    stories = (
+        query.order_by(desc(models.Story.last_updated_at))
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
+    return [story_to_read(story) for story in stories]
+
+
 @router.get("/hot", response_model=List[schemas.StoryRead])
 def hot_stories(
     limit: int = Query(20, ge=1, le=500),

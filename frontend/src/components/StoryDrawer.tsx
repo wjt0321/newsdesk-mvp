@@ -1,9 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
-import type { Story } from "../api/types";
+import { useMemo, useState } from "react";
+import type { Article, Story } from "../api/types";
 import {
   X,
-  ExternalLink,
   Clock,
   Calendar,
   GitMerge,
@@ -19,13 +18,14 @@ import {
   displayStoryTitle,
   formatRelativeTime,
   formatStoryStatus,
+  storySources,
 } from "../lib/format";
-import { openExternal } from "../lib/openExternal";
 import { listSources } from "../api/sources";
 import { api } from "../api/client";
 import { SourceChips } from "./news/SourceChips";
 import { SignalBadge } from "./news/SignalBadge";
 import { toast } from "sonner";
+import { ArticleDrawer } from "./ArticleDrawer";
 
 interface StoryDrawerProps {
   story: Story | null;
@@ -82,6 +82,7 @@ function generatePlaceholderSummary(story: Story): string {
 export function StoryDrawer({ story, onClose }: StoryDrawerProps) {
   const sourceNameById = useSourceNameLookup();
   const { data: diff } = useStoryDiff(story?.id);
+  const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
 
   const summary = useMemo(() => {
     if (!story) return "";
@@ -141,7 +142,7 @@ export function StoryDrawer({ story, onClose }: StoryDrawerProps) {
           <header className="space-y-4">
             <div className="flex items-center gap-2 flex-wrap">
               <StatusBadge story={story} />
-              <SourceChips names={story.source_names} max={6} />
+              <SourceChips sources={storySources(story)} max={6} clickable />
             </div>
 
             <h2 className="text-2xl font-semibold text-text-primary leading-tight text-balance">
@@ -221,11 +222,10 @@ export function StoryDrawer({ story, onClose }: StoryDrawerProps) {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      openExternal(article.url);
+                      setSelectedArticle(article);
                     }}
                     className="flex items-start gap-3 text-left w-full p-3"
                   >
-                    <ExternalLink className="w-4 h-4 text-text-tertiary mt-0.5 flex-shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm text-text-primary group-hover:text-accent transition-colors line-clamp-2">
                         {displayArticleTitle(article)}
@@ -237,7 +237,7 @@ export function StoryDrawer({ story, onClose }: StoryDrawerProps) {
                       )}
                       <div className="flex items-center gap-2 mt-1 text-xs text-text-tertiary">
                         <span className="font-medium text-text-secondary">
-                          {sourceNameById.get(article.source_id) || `来源 #${article.source_id}`}
+                          {sourceNameById.get(article.source_id) || article.source_name || `来源 #${article.source_id}`}
                         </span>
                         {article.published_at && (
                           <span>{formatRelativeTime(article.published_at)}</span>
@@ -297,6 +297,11 @@ export function StoryDrawer({ story, onClose }: StoryDrawerProps) {
           )}
         </div>
       </aside>
+
+      <ArticleDrawer
+        article={selectedArticle}
+        onClose={() => setSelectedArticle(null)}
+      />
     </>
   );
 }

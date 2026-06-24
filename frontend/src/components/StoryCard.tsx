@@ -5,6 +5,7 @@ import {
   displayStoryTitle,
   formatRelativeTime,
   formatStoryStatus,
+  storySources,
 } from "../lib/format";
 import { SourceChips } from "./news/SourceChips";
 import { SignalGroup } from "./news/SignalBadge";
@@ -42,7 +43,7 @@ export function StoryCard({ story, onClick, variant = "default" }: StoryCardProp
         </div>
 
         <div className="mt-2.5">
-          <SourceChips names={story.source_names} max={3} />
+          <SourceChips sources={storySources(story)} max={3} clickable />
         </div>
 
         <div className="flex items-center justify-between mt-2.5">
@@ -78,7 +79,7 @@ export function StoryCard({ story, onClick, variant = "default" }: StoryCardProp
       </div>
 
       <div className="mt-3">
-        <SourceChips names={story.source_names} max={5} />
+        <SourceChips sources={storySources(story)} max={5} clickable />
       </div>
 
       <div className="flex items-center justify-between mt-3">

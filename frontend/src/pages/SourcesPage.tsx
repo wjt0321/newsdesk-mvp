@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { Link } from "react-router-dom";
 import {
   useQuery,
   useMutation,
@@ -478,7 +479,13 @@ export function SourcesPage() {
                       <td className="px-4 py-3 font-medium">
                         <div className="flex items-center gap-2">
                           <Radio className="w-4 h-4 text-text-secondary flex-shrink-0" />
-                          <span className="truncate max-w-[180px]">{source.name}</span>
+                          <Link
+                            to={`/sources/${source.id}`}
+                            className="truncate max-w-[180px] hover:text-accent hover:underline"
+                            title={source.name}
+                          >
+                            {source.name}
+                          </Link>
                         </div>
                       </td>
                       <td className="px-4 py-3 text-text-secondary capitalize">

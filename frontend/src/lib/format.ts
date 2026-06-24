@@ -77,3 +77,13 @@ export function displayArticleTitle(article: Article): string {
 export function displayArticleSummary(article: Article): string | null {
   return article.clean_summary || article.summary_raw || article.content_text?.slice(0, 240) || null;
 }
+
+export function storySources(story: Story): { id: number; name: string }[] {
+  const map = new Map<number, string>();
+  for (const article of story.articles || []) {
+    if (article.source_id && !map.has(article.source_id)) {
+      map.set(article.source_id, article.source_name || `来源 #${article.source_id}`);
+    }
+  }
+  return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
+}

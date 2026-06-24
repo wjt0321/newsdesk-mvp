@@ -6,6 +6,7 @@ import { StoriesPage } from "./pages/StoriesPage";
 import { ChannelsPage } from "./pages/ChannelsPage";
 import { WatchlistPage } from "./pages/WatchlistPage";
 import { SourcesPage } from "./pages/SourcesPage";
+import { SourceDetailPage } from "./pages/SourceDetailPage";
 import { SourceHealthPage } from "./pages/SourceHealthPage";
 import { BriefingPage } from "./pages/BriefingPage";
 
@@ -19,6 +20,7 @@ function App() {
           <Route path="channels" element={<ChannelsPage />} />
           <Route path="watchlist" element={<WatchlistPage />} />
           <Route path="sources" element={<SourcesPage />} />
+          <Route path="sources/:id" element={<SourceDetailPage />} />
           <Route path="source-health" element={<SourceHealthPage />} />
           <Route path="briefing" element={<BriefingPage />} />
         </Route>

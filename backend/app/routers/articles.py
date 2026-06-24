@@ -19,6 +19,7 @@ def _article_query(db: Session):
 
 def _apply_clean_fields(article: models.Article) -> schemas.ArticleRead:
     read = schemas.ArticleRead.model_validate(article)
+    read.source_name = article.source.name if article.source else None
     read.clean_title = clean_title(article.title)
     read.clean_summary = clean_summary(article.summary_raw)
     read.clean_content_text = clean_content_text(article.content_text)

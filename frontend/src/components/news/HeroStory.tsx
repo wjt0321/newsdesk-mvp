@@ -1,6 +1,11 @@
 import { useState } from "react";
 import type { Story } from "../../api/types";
-import { displayStorySubtitle, displayStoryTitle, formatStoryStatus } from "../../lib/format";
+import {
+  displayStorySubtitle,
+  displayStoryTitle,
+  formatStoryStatus,
+  storySources,
+} from "../../lib/format";
 import { SourceChips } from "./SourceChips";
 import { SignalGroup } from "./SignalBadge";
 import clsx from "clsx";
@@ -73,9 +78,10 @@ function StoryContent({ story, variant }: { story: Story; variant: "overlay" | "
 
       <div className={clsx("pt-2", variant === "light" ? "border-t border-border/60" : "")}>
         <SourceChips
-          names={story.source_names}
+          sources={storySources(story)}
           max={5}
           size="md"
+          clickable
           className={variant === "overlay" ? "[&>span]:bg-white/10 [&>span]:border-white/20 [&>span]:text-white/90" : ""}
         />
         <div className="mt-2">

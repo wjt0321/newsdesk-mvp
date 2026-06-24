@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
   AlertTriangle,
@@ -268,7 +269,12 @@ export function SourceHealthPage() {
               return (
                 <tr key={source.id} className="hover:bg-surface-subtle/40 transition-colors">
                   <td className="px-4 py-3 align-top">
-                    <p className="font-medium text-text-primary truncate">{source.name}</p>
+                    <Link
+                      to={`/sources/${source.id}`}
+                      className="font-medium text-text-primary truncate hover:text-accent hover:underline"
+                    >
+                      {source.name}
+                    </Link>
                     <p className="text-xs text-text-tertiary truncate max-w-[260px]">
                       {source.url}
                     </p>
