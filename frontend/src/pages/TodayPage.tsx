@@ -2,13 +2,19 @@ import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { listStories } from "../api/stories";
-import { displayStoryTitle } from "../lib/format";
+import { listSourceHealth } from "../api/sources";
+import {
+  displayStoryTitle,
+  formatRelativeTime,
+  storyHasImage,
+} from "../lib/format";
 import type { Story } from "../api/types";
 import { HeroStory } from "../components/news/HeroStory";
 import { SecondaryStory } from "../components/news/SecondaryStory";
-import { StoryCard } from "../components/StoryCard";
 import { StoryDrawer } from "../components/StoryDrawer";
 import { RisingNow } from "../components/RisingNow";
+import { VisualBoard } from "../components/VisualBoard";
+import { TextFeed } from "../components/TextFeed";
 import { HealthStats } from "../components/HealthStats";
 import { SectionHeader } from "../components/ui/SectionHeader";
 import { EmptyState } from "../components/ui/EmptyState";
@@ -20,7 +26,9 @@ import {
   PlusCircle,
   TrendingUp,
   AlertTriangle,
-  Clock,
+  Aperture,
+  FileText,
+  Radio,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useDashboardContext } from "../hooks/useDashboardContext";
@@ -125,13 +133,22 @@ export function TodayPage() {
   const focusStories = applySourceDiversity(highConfidenceStories, 2);
   const heroStory = focusStories[0] || null;
   const secondaryStories = focusStories.slice(1, 4);
+  const focusIds = new Set([heroStory?.id, ...secondaryStories.map((s) => s.id)]);
+
+  const imageStories = applySourceDiversity(
+    highConfidenceStories.filter((s) => storyHasImage(s) && !focusIds.has(s.id)),
+    2
+  ).slice(0, 6);
+
+  const textStories = applySourceDiversity(
+    highConfidenceStories.filter((s) => !storyHasImage(s) && !focusIds.has(s.id)),
+    3
+  ).slice(0, 12);
 
   const risingStories = applySourceDiversity(
     sortedByQuality.filter((story) => story.status === "new" || story.status === "developing"),
     2
   ).slice(0, 6);
-
-  const moreStories = applySourceDiversity(sortedByQuality, 3).slice(0, 20);
 
   const pendingReview = sortedByQuality
     .filter((story) => story.needs_review || story.confidence < 0.7)
@@ -261,25 +278,27 @@ export function TodayPage() {
             </section>
           )}
 
+          {imageStories.length > 0 && (
+            <section>
+              <SectionHeader title="有图报道" icon={Aperture} />
+              <VisualBoard stories={imageStories} onStoryClick={setSelectedStory} />
+            </section>
+          )}
+
           <RisingNow stories={risingStories} onStoryClick={setSelectedStory} />
 
-          <section>
-            <SectionHeader title="更多新闻" icon={Clock} />
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {moreStories.map((story) => (
-                <StoryCard
-                  key={story.id}
-                  story={story}
-                  variant="compact"
-                  onClick={() => setSelectedStory(story)}
-                />
-              ))}
-            </div>
-          </section>
+          {textStories.length > 0 && (
+            <section>
+              <SectionHeader title="文字情报" icon={FileText} />
+              <TextFeed stories={textStories} onStoryClick={setSelectedStory} />
+            </section>
+          )}
         </div>
 
         <aside className="xl:col-span-4 space-y-6">
           <HealthStats />
+
+          <SourceActivity />
 
           {pendingReview.length > 0 && (
             <section className="bg-surface border border-border rounded-2xl p-5">
@@ -329,5 +348,67 @@ function PageHeader({ count }: { count?: number }) {
         </p>
       )}
     </div>
+  );
+}
+
+function SourceActivity() {
+  const { data: health = [] } = useQuery({
+    queryKey: ["source-health"],
+    queryFn: listSourceHealth,
+  });
+
+  const failing = health.filter((h) => h.status === "broken" || h.status === "degraded").slice(0, 5);
+  const recent = health
+    .filter((h) => h.status === "healthy" && h.last_fetched_at)
+    .sort(
+      (a, b) =>
+        new Date(b.last_fetched_at!).getTime() - new Date(a.last_fetched_at!).getTime()
+    )
+    .slice(0, 5);
+
+  return (
+    <section className="bg-surface border border-border rounded-2xl p-5">
+      <SectionHeader title="来源动态" icon={Radio} />
+
+      {failing.length > 0 && (
+        <div className="mb-4">
+          <p className="text-xs font-medium text-text-tertiary mb-2">需要关注</p>
+          <div className="space-y-2">
+            {failing.map((source) => (
+              <Link
+                key={source.id}
+                to={`/sources/${source.id}`}
+                className="flex items-center justify-between text-sm hover:text-accent transition-colors"
+              >
+                <span className="truncate flex-1">{source.name}</span>
+                <span className="text-xs text-red-600 flex-shrink-0">
+                  {source.suggested_action}
+                </span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {recent.length > 0 && (
+        <div>
+          <p className="text-xs font-medium text-text-tertiary mb-2">最近更新</p>
+          <div className="space-y-2">
+            {recent.map((source) => (
+              <Link
+                key={source.id}
+                to={`/sources/${source.id}`}
+                className="flex items-center justify-between text-sm hover:text-accent transition-colors"
+              >
+                <span className="truncate flex-1">{source.name}</span>
+                <span className="text-xs text-text-tertiary flex-shrink-0">
+                  {formatRelativeTime(source.last_fetched_at!)}
+                </span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+    </section>
   );
 }

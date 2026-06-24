@@ -73,7 +73,7 @@ export function SourceDetailPage() {
     try {
       await api.post(`/api/sources/${sourceId}/fetch?background=true`);
       toast.success("已触发抓取");
-    } catch (e) {
+    } catch {
       toast.error("触发抓取失败");
     }
   }

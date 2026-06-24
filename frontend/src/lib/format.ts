@@ -87,3 +87,7 @@ export function storySources(story: Story): { id: number; name: string }[] {
   }
   return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
 }
+
+export function storyHasImage(story: Story): boolean {
+  return story.articles?.some((article) => article.image_url) ?? false;
+}
