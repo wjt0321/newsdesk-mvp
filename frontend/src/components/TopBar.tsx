@@ -1,13 +1,10 @@
 import { RefreshCw, Search } from "lucide-react";
-import {
-  useQuery,
-  useQueryClient,
-  useIsFetching,
-} from "@tanstack/react-query";
-import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import clsx from "clsx";
 import { useDashboardContext } from "../hooks/useDashboardContext";
 import { listSources } from "../api/sources";
+import { useRefreshDashboard } from "../hooks/useRefreshDashboard";
 
 const TIME_OPTIONS: { label: string; value: number | null }[] = [
   { label: "1h", value: 1 },
@@ -19,20 +16,8 @@ const TIME_OPTIONS: { label: string; value: number | null }[] = [
 
 export function TopBar() {
   const { searchQuery, setSearchQuery, hours, setHours } = useDashboardContext();
-  const queryClient = useQueryClient();
-  const isFetchingStories = useIsFetching({ queryKey: ["stories"] }) > 0;
-  const isFetchingSources = useIsFetching({ queryKey: ["sources"] }) > 0;
-  const isFetchingHealth = useIsFetching({ queryKey: ["source-health"] }) > 0;
-  const isFetchingRules = useIsFetching({ queryKey: ["watch-rules"] }) > 0;
-  const isFetchingChannels = useIsFetching({ queryKey: ["channels"] }) > 0;
-  const isFetchingBriefing = useIsFetching({ queryKey: ["briefing"] }) > 0;
-  const isFetching =
-    isFetchingStories ||
-    isFetchingSources ||
-    isFetchingHealth ||
-    isFetchingRules ||
-    isFetchingChannels ||
-    isFetchingBriefing;
+  const { isRefreshing, lastRefreshAt, refreshDashboard } = useRefreshDashboard();
+  const navigate = useNavigate();
 
   const { data: sources = [] } = useQuery({
     queryKey: ["sources"],
@@ -40,15 +25,27 @@ export function TopBar() {
   });
 
   const health = computeSourceHealth(sources);
+  const timeScopeLabel =
+    TIME_OPTIONS.find((option) => option.value === hours)?.label ?? "24h";
+  const lastFetchedAt = sources
+    .map((source) => source.last_fetched_at)
+    .filter((value): value is string => Boolean(value))
+    .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0];
+  const statusText = isRefreshing
+    ? "刷新中"
+    : lastRefreshAt
+    ? `刚刷新于 ${lastRefreshAt.toLocaleTimeString("zh-CN", {
+        hour: "2-digit",
+        minute: "2-digit",
+      })}`
+    : lastFetchedAt
+    ? `最近抓取 ${formatStatusTime(lastFetchedAt)}`
+    : "等待首次刷新";
 
-  function handleRefresh() {
-    toast.info("正在刷新数据...");
-    queryClient.refetchQueries({ queryKey: ["stories"] });
-    queryClient.refetchQueries({ queryKey: ["sources"] });
-    queryClient.refetchQueries({ queryKey: ["source-health"] });
-    queryClient.refetchQueries({ queryKey: ["watch-rules"] });
-    queryClient.refetchQueries({ queryKey: ["channels"] });
-    queryClient.refetchQueries({ queryKey: ["briefing"] });
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!searchQuery.trim()) return;
+    navigate("/search");
   }
 
   const today = new Date().toLocaleDateString("zh-CN", {
@@ -59,21 +56,25 @@ export function TopBar() {
 
   return (
     <header className="h-14 border-b border-border bg-surface flex items-center justify-between px-6 flex-shrink-0 gap-4">
-      <div className="hidden lg:flex items-center gap-2 text-sm text-text-secondary shrink-0 w-48">
+      <div className="hidden xl:flex flex-col justify-center text-sm text-text-secondary shrink-0 w-52">
         <span>{today}</span>
+        <span className="text-[11px] text-text-tertiary">
+          当前窗口 {timeScopeLabel} · {statusText}
+        </span>
       </div>
 
       <div className="flex-1 flex justify-center max-w-2xl">
-        <div className="relative w-full max-w-md">
+        <form onSubmit={handleSubmit} className="relative w-full max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="搜索报道、来源或主题..."
+            aria-label="搜索报道、来源或主题"
             className="w-full bg-background border border-border rounded-lg pl-9 pr-3 py-1.5 text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent transition-shadow"
           />
-        </div>
+        </form>
       </div>
 
       <div className="flex items-center justify-end gap-3 shrink-0 w-auto lg:w-48">
@@ -81,9 +82,11 @@ export function TopBar() {
           {TIME_OPTIONS.map(({ label, value }) => (
             <button
               key={label}
+              type="button"
               onClick={() => setHours(value)}
+              aria-pressed={hours === value}
               className={clsx(
-                "px-2.5 py-1 text-xs font-medium rounded-md transition-colors",
+                "px-2.5 py-1 text-xs font-medium rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40",
                 hours === value
                   ? "bg-accent text-white shadow-sm"
                   : "text-text-secondary hover:text-text-primary hover:bg-surface"
@@ -100,12 +103,13 @@ export function TopBar() {
         </div>
 
         <button
-          onClick={handleRefresh}
-          className="p-1.5 rounded-md hover:bg-surface-subtle transition-colors text-text-secondary hover:text-text-primary"
+          type="button"
+          onClick={refreshDashboard}
+          className="p-1.5 rounded-md hover:bg-surface-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 transition-colors text-text-secondary hover:text-text-primary"
           aria-label="刷新"
           title="刷新"
         >
-          <RefreshCw className={clsx("w-4 h-4", isFetching && "animate-spin")} />
+          <RefreshCw className={clsx("w-4 h-4", isRefreshing && "animate-spin")} />
         </button>
       </div>
     </header>
@@ -161,4 +165,11 @@ function computeSourceHealth(
       : HEALTH_CONFIG[status].label;
 
   return { ...HEALTH_CONFIG[status], label };
+}
+
+function formatStatusTime(dateString: string): string {
+  return new Date(dateString).toLocaleTimeString("zh-CN", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }

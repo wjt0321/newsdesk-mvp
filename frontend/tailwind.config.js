@@ -14,6 +14,11 @@ export default {
         accent: "#2563EB",
         amber: "#D89A2B",
         danger: "#C2410C",
+        success: "#16A34A",
+        "success-light": "#F0FDF4",
+        "danger-light": "#FEF2F2",
+        "warning-light": "#FFFBEB",
+        "muted-light": "#F3F4F6",
       },
       fontFamily: {
         sans: [

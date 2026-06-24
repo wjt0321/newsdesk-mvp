@@ -1,12 +1,10 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { listStories } from "../api/stories";
+import { useQuery } from "@tanstack/react-query";
 import { listSourceHealth } from "../api/sources";
 import {
   displayStoryTitle,
   formatRelativeTime,
-  storyHasImage,
 } from "../lib/format";
 import type { Story } from "../api/types";
 import { HeroStory } from "../components/news/HeroStory";
@@ -15,12 +13,9 @@ import { StoryDrawer } from "../components/StoryDrawer";
 import { RisingNow } from "../components/RisingNow";
 import { VisualBoard } from "../components/VisualBoard";
 import { TextFeed } from "../components/TextFeed";
-import { HealthStats } from "../components/HealthStats";
 import { SectionHeader } from "../components/ui/SectionHeader";
-import { EmptyState } from "../components/ui/EmptyState";
+import { PageEmpty, PageError, PageLoading } from "../components/ui/PageStatus";
 import {
-  Loader2,
-  AlertCircle,
   RotateCcw,
   Newspaper,
   PlusCircle,
@@ -28,151 +23,35 @@ import {
   AlertTriangle,
   Aperture,
   FileText,
-  Radio,
+  Activity,
+  Database,
+  Layers,
+  CheckCircle2,
 } from "lucide-react";
-import { toast } from "sonner";
-import { useDashboardContext } from "../hooks/useDashboardContext";
-
-function primarySourceName(story: Story): string {
-  return story.source_names[0] || "未知";
-}
-
-function applySourceDiversity(stories: Story[], maxSameSource: number = 2): Story[] {
-  const remaining = [...stories];
-  const result: Story[] = [];
-  let consecutiveSameSource = 0;
-  let lastSource = "";
-
-  while (remaining.length > 0) {
-    let pickedIdx = 0;
-    if (lastSource && consecutiveSameSource >= maxSameSource) {
-      const differentIdx = remaining.findIndex((s) => primarySourceName(s) !== lastSource);
-      if (differentIdx >= 0) {
-        pickedIdx = differentIdx;
-      }
-    }
-
-    const picked = remaining.splice(pickedIdx, 1)[0];
-    const source = primarySourceName(picked);
-    if (source === lastSource) {
-      consecutiveSameSource += 1;
-    } else {
-      consecutiveSameSource = 1;
-      lastSource = source;
-    }
-    result.push(picked);
-  }
-
-  return result;
-}
-
-function scoreForTodaySort(story: Story): number {
-  let score = story.heat_score;
-
-  if (story.needs_review) {
-    score -= 50;
-  }
-  if (story.confidence < 0.7) {
-    score -= 20;
-  }
-  if (story.source_count >= 2) {
-    score += 10;
-  }
-  if (story.article_count === 1 && story.heat_score < 50) {
-    score -= 15;
-  }
-
-  return score;
-}
-
-function sourceDominanceWarning(stories: Story[]): { source: string; ratio: number } | null {
-  if (stories.length === 0) return null;
-  const counts = new Map<string, number>();
-  stories.slice(0, 20).forEach((s) => {
-    const name = primarySourceName(s);
-    counts.set(name, (counts.get(name) || 0) + 1);
-  });
-  const [topSource, topCount] = [...counts.entries()].sort((a, b) => b[1] - a[1])[0] || ["", 0];
-  const ratio = topCount / Math.min(stories.length, 20);
-  return ratio > 0.3 ? { source: topSource, ratio } : null;
-}
+import clsx from "clsx";
+import { useRefreshDashboard } from "../hooks/useRefreshDashboard";
+import { useTodayStories } from "../hooks/useTodayStories";
 
 export function TodayPage() {
-  const { searchQuery, hours } = useDashboardContext();
   const [selectedStory, setSelectedStory] = useState<Story | null>(null);
-  const queryClient = useQueryClient();
-
-  const trimmedQuery = searchQuery.trim();
+  const { refreshDashboard } = useRefreshDashboard();
 
   const {
-    data: stories = [],
+    heroStory,
+    secondaryStories,
+    imageStories,
+    textStories,
+    risingStories,
+    pendingReview,
+    dominance,
+    totalCount,
     isLoading,
     isError,
     error,
-  } = useQuery({
-    queryKey: ["stories", { limit: 100, hours, q: trimmedQuery }],
-    queryFn: () =>
-      listStories({
-        limit: 100,
-        hours: hours ?? undefined,
-        q: trimmedQuery || undefined,
-      }),
-  });
-
-  const filteredStories = stories;
-
-  const sortedByQuality = useMemo(
-    () => [...filteredStories].sort((a, b) => scoreForTodaySort(b) - scoreForTodaySort(a)),
-    [filteredStories]
-  );
-
-  const highConfidenceStories = sortedByQuality.filter(
-    (story) => !story.needs_review && story.confidence >= 0.7
-  );
-
-  const focusStories = applySourceDiversity(highConfidenceStories, 2);
-  const heroStory = focusStories[0] || null;
-  const secondaryStories = focusStories.slice(1, 4);
-  const focusIds = new Set([heroStory?.id, ...secondaryStories.map((s) => s.id)]);
-
-  const imageStories = applySourceDiversity(
-    highConfidenceStories.filter((s) => storyHasImage(s) && !focusIds.has(s.id)),
-    2
-  ).slice(0, 6);
-
-  const textStories = applySourceDiversity(
-    highConfidenceStories.filter((s) => !storyHasImage(s) && !focusIds.has(s.id)),
-    3
-  ).slice(0, 12);
-
-  const risingStories = applySourceDiversity(
-    sortedByQuality.filter((story) => story.status === "new" || story.status === "developing"),
-    2
-  ).slice(0, 6);
-
-  const pendingReview = sortedByQuality
-    .filter((story) => story.needs_review || story.confidence < 0.7)
-    .slice(0, 5);
-
-  const dominance = useMemo(() => sourceDominanceWarning(sortedByQuality), [sortedByQuality]);
-
-  function handleRetry() {
-    toast.info("正在刷新数据...");
-    queryClient.refetchQueries({ queryKey: ["stories"] });
-    queryClient.refetchQueries({ queryKey: ["sources"] });
-    queryClient.refetchQueries({ queryKey: ["source-health"] });
-    queryClient.refetchQueries({ queryKey: ["watch-rules"] });
-    queryClient.refetchQueries({ queryKey: ["channels"] });
-    queryClient.refetchQueries({ queryKey: ["briefing"] });
-  }
+  } = useTodayStories();
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64 text-text-secondary">
-        <Loader2 className="w-6 h-6 animate-spin mr-2" />
-        <span>正在加载今日简报...</span>
-      </div>
-    );
+    return <PageLoading label="正在加载今日简报..." className="h-64" />;
   }
 
   if (isError) {
@@ -182,40 +61,32 @@ export function TodayPage() {
 
     return (
       <div className="p-6">
-        <div className="max-w-2xl mx-auto bg-surface border border-danger/20 rounded-2xl p-8 text-center">
-          <AlertCircle className="w-8 h-8 text-danger mx-auto mb-3" />
-          <h3 className="text-lg font-semibold text-text-primary mb-1">
-            加载今日简报失败
-          </h3>
-          <p className="text-sm text-text-secondary mb-2">
-            {error instanceof Error ? error.message : "出了点问题，请重试。"}
-          </p>
-          {isConnectionError && (
-            <p className="text-xs text-text-tertiary mb-4">
-              看起来后端未运行。请使用以下命令启动：{" "}
-              <code className="bg-surface-subtle px-1.5 py-0.5 rounded">
-                backend/.venv/Scripts/python -m uvicorn app.main:app
-              </code>
-            </p>
-          )}
-          <button
-            onClick={handleRetry}
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-danger text-white rounded-lg hover:bg-danger/90 transition-colors"
-          >
-            <RotateCcw className="w-4 h-4" />
-            重试
-          </button>
-        </div>
+        <PageError
+          className="max-w-2xl mx-auto"
+          title="加载今日简报失败"
+          description={error instanceof Error ? error.message : "出了点问题，请重试。"}
+          onRetry={refreshDashboard}
+          hint={
+            isConnectionError ? (
+              <>
+                看起来后端未运行。请使用以下命令启动：{" "}
+                <code className="bg-surface-subtle px-1.5 py-0.5 rounded">
+                  backend/.venv/Scripts/python -m uvicorn app.main:app
+                </code>
+              </>
+            ) : null
+          }
+        />
       </div>
     );
   }
 
-  if (filteredStories.length === 0 && !isLoading) {
+  if (totalCount === 0 && !isLoading) {
     return (
       <div className="p-6">
         <PageHeader />
         <div className="max-w-2xl mx-auto mt-6">
-          <EmptyState
+          <PageEmpty
             icon={Newspaper}
             title="暂无报道"
             description="添加几个 RSS 来源并运行抓取，即可开始查看简报。如果已有来源，请等待下次定时抓取或手动触发。"
@@ -229,14 +100,15 @@ export function TodayPage() {
                 添加来源
               </Link>
               <button
-                onClick={handleRetry}
+                type="button"
+                onClick={refreshDashboard}
                 className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-surface-subtle border border-border text-text-primary rounded-lg hover:bg-surface transition-colors"
               >
                 <RotateCcw className="w-4 h-4" />
                 刷新
               </button>
             </div>
-          </EmptyState>
+          </PageEmpty>
         </div>
       </div>
     );
@@ -244,7 +116,7 @@ export function TodayPage() {
 
   return (
     <div className="p-6">
-      <PageHeader count={filteredStories.length} />
+      <PageHeader count={totalCount} />
 
       {dominance && (
         <div className="mb-5 bg-amber/5 border border-amber/20 rounded-xl px-4 py-3 flex items-start gap-3">
@@ -295,32 +167,11 @@ export function TodayPage() {
           )}
         </div>
 
-        <aside className="xl:col-span-4 space-y-6">
-          <HealthStats />
-
-          <SourceActivity />
-
-          {pendingReview.length > 0 && (
-            <section className="bg-surface border border-border rounded-2xl p-5">
-              <SectionHeader title="待复核" icon={AlertTriangle} />
-              <div className="space-y-3">
-                {pendingReview.map((story) => (
-                  <button
-                    key={story.id}
-                    onClick={() => setSelectedStory(story)}
-                    className="w-full text-left group"
-                  >
-                    <p className="text-sm font-medium text-text-primary line-clamp-2 group-hover:text-accent transition-colors">
-                      {displayStoryTitle(story)}
-                    </p>
-                    <p className="text-xs text-text-tertiary mt-1">
-                      {story.needs_review ? "需审核" : `置信度 ${(story.confidence * 100).toFixed(0)}%`}
-                    </p>
-                  </button>
-                ))}
-              </div>
-            </section>
-          )}
+        <aside className="xl:col-span-4">
+          <IntelligenceRail
+            pendingReview={pendingReview}
+            onStoryClick={setSelectedStory}
+          />
         </aside>
       </div>
 
@@ -351,28 +202,87 @@ function PageHeader({ count }: { count?: number }) {
   );
 }
 
-function SourceActivity() {
-  const { data: health = [] } = useQuery({
+function IntelligenceRail({
+  pendingReview,
+  onStoryClick,
+}: {
+  pendingReview: Story[];
+  onStoryClick: (story: Story) => void;
+}) {
+  const { data: health = [], isLoading } = useQuery({
     queryKey: ["source-health"],
     queryFn: listSourceHealth,
   });
 
-  const failing = health.filter((h) => h.status === "broken" || h.status === "degraded").slice(0, 5);
+  const enabled = health.filter((h) => h.enabled);
+  const healthy = enabled.filter((h) => h.status === "healthy").length;
+  const problems = enabled.filter((h) =>
+    ["broken", "degraded", "silent", "noisy"].includes(h.status)
+  );
+  const problemCount = problems.length;
+  const totalArticles = health.reduce((sum, h) => sum + h.article_count_24h, 0);
+  const totalStories = health.reduce((sum, h) => sum + h.story_count_24h, 0);
+
+  const failing = health
+    .filter((h) => h.status === "broken" || h.status === "degraded")
+    .slice(0, 4);
   const recent = health
     .filter((h) => h.status === "healthy" && h.last_fetched_at)
     .sort(
       (a, b) =>
         new Date(b.last_fetched_at!).getTime() - new Date(a.last_fetched_at!).getTime()
     )
-    .slice(0, 5);
+    .slice(0, 4);
 
   return (
-    <section className="bg-surface border border-border rounded-2xl p-5">
-      <SectionHeader title="来源动态" icon={Radio} />
+    <div className="bg-surface border border-border rounded-2xl overflow-hidden sticky top-6">
+      {/* Header */}
+      <div className="px-5 py-4 border-b border-border bg-background">
+        <div className="flex items-center gap-2 text-sm font-semibold text-text-primary">
+          <Activity className="w-4 h-4 text-accent" />
+          情报面板
+        </div>
+      </div>
 
-      {failing.length > 0 && (
-        <div className="mb-4">
-          <p className="text-xs font-medium text-text-tertiary mb-2">需要关注</p>
+      {/* Health Stats */}
+      <div className="px-5 py-4 border-b border-border">
+        <div className="space-y-2">
+          <StatRow
+            icon={CheckCircle2}
+            label="健康来源"
+            value={`${healthy}/${enabled.length}`}
+            tone={problemCount > 0 ? "text-amber" : "text-success"}
+          />
+          <StatRow
+            icon={Database}
+            label="24h 文章"
+            value={totalArticles.toString()}
+            tone="text-accent"
+          />
+          <StatRow
+            icon={Layers}
+            label="24h 报道"
+            value={totalStories.toString()}
+            tone="text-text-primary"
+          />
+        </div>
+        {problemCount > 0 && (
+          <Link
+            to="/source-health"
+            className="mt-3 inline-flex items-center gap-1 text-xs text-accent hover:underline"
+          >
+            <AlertTriangle className="w-3 h-3" />
+            {problemCount} 个来源需要关注 →
+          </Link>
+        )}
+      </div>
+
+      {/* Source Activity */}
+      {!isLoading && (failing.length > 0 || recent.length > 0) && (
+        <div className="px-5 py-4 border-b border-border">
+          <p className="text-xs font-semibold uppercase tracking-wider text-text-tertiary mb-3">
+            来源动态
+          </p>
           <div className="space-y-2">
             {failing.map((source) => (
               <Link
@@ -381,19 +291,11 @@ function SourceActivity() {
                 className="flex items-center justify-between text-sm hover:text-accent transition-colors"
               >
                 <span className="truncate flex-1">{source.name}</span>
-                <span className="text-xs text-red-600 flex-shrink-0">
+                <span className="text-xs text-red-600 flex-shrink-0 ml-2">
                   {source.suggested_action}
                 </span>
               </Link>
             ))}
-          </div>
-        </div>
-      )}
-
-      {recent.length > 0 && (
-        <div>
-          <p className="text-xs font-medium text-text-tertiary mb-2">最近更新</p>
-          <div className="space-y-2">
             {recent.map((source) => (
               <Link
                 key={source.id}
@@ -401,7 +303,7 @@ function SourceActivity() {
                 className="flex items-center justify-between text-sm hover:text-accent transition-colors"
               >
                 <span className="truncate flex-1">{source.name}</span>
-                <span className="text-xs text-text-tertiary flex-shrink-0">
+                <span className="text-xs text-text-tertiary flex-shrink-0 ml-2">
                   {formatRelativeTime(source.last_fetched_at!)}
                 </span>
               </Link>
@@ -409,6 +311,56 @@ function SourceActivity() {
           </div>
         </div>
       )}
-    </section>
+
+      {/* Pending Review */}
+      {pendingReview.length > 0 && (
+        <div className="px-5 py-4">
+          <p className="text-xs font-semibold uppercase tracking-wider text-text-tertiary mb-3 flex items-center gap-1.5">
+            <AlertTriangle className="w-3 h-3 text-amber" />
+            待复核
+          </p>
+          <div className="space-y-2.5">
+            {pendingReview.map((story) => (
+              <button
+                key={story.id}
+                onClick={() => onStoryClick(story)}
+                className="w-full text-left group"
+              >
+                <p className="text-sm font-medium text-text-primary line-clamp-2 group-hover:text-accent transition-colors">
+                  {displayStoryTitle(story)}
+                </p>
+                <p className="text-xs text-text-tertiary mt-0.5">
+                  {story.needs_review ? "需审核" : `置信度 ${(story.confidence * 100).toFixed(0)}%`}
+                </p>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StatRow({
+  icon: Icon,
+  label,
+  value,
+  tone,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: string;
+  tone: string;
+}) {
+  return (
+    <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-surface-subtle/50">
+      <div className="flex items-center gap-2 text-sm text-text-secondary">
+        <Icon className="w-4 h-4 text-text-tertiary" />
+        <span>{label}</span>
+      </div>
+      <span className={clsx("text-sm font-semibold tabular-nums", tone)}>
+        {value}
+      </span>
+    </div>
   );
 }

@@ -4,6 +4,7 @@ import { Copy, CheckCircle2, Newspaper, Calendar } from "lucide-react";
 import { api } from "../api/client";
 import { formatStoryStatus } from "../lib/format";
 import { SectionHeader } from "../components/ui/SectionHeader";
+import { PageLoading, PageError } from "../components/ui/PageStatus";
 import { toast } from "sonner";
 
 interface BriefingItem {
@@ -47,23 +48,18 @@ export function BriefingPage() {
   };
 
   if (isLoading) {
-    return (
-      <div className="p-6 text-text-secondary flex items-center gap-2">
-        <Newspaper className="w-5 h-5 animate-pulse" />
-        正在加载简报...
-      </div>
-    );
+    return <PageLoading label="正在加载简报..." />;
   }
 
   if (error || !data) {
     return (
-      <div className="p-6 max-w-3xl mx-auto">
-        <div className="bg-surface border border-danger/20 rounded-2xl p-6 text-danger">
-          <h2 className="text-lg font-semibold mb-1">加载简报失败</h2>
-          <p className="text-sm text-text-secondary">
-            {error instanceof Error ? error.message : "请稍后重试。"}
-          </p>
-        </div>
+      <div className="p-6">
+        <PageError
+          className="max-w-2xl mx-auto"
+          title="加载简报失败"
+          description={error instanceof Error ? error.message : "请稍后重试。"}
+          onRetry={() => window.location.reload()}
+        />
       </div>
     );
   }

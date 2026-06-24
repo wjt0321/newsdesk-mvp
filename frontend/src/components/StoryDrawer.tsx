@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Article, Story } from "../api/types";
 import {
   X,
@@ -83,6 +83,32 @@ export function StoryDrawer({ story, onClose }: StoryDrawerProps) {
   const sourceNameById = useSourceNameLookup();
   const { data: diff } = useStoryDiff(story?.id);
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    if (!story) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    closeButtonRef.current?.focus();
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        if (selectedArticle) {
+          setSelectedArticle(null);
+          return;
+        }
+        onClose();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [story, selectedArticle, onClose]);
 
   const summary = useMemo(() => {
     if (!story) return "";
@@ -113,23 +139,33 @@ export function StoryDrawer({ story, onClose }: StoryDrawerProps) {
         onClick={onClose}
         aria-hidden="true"
       />
-      <aside className="fixed inset-y-0 right-0 w-full max-w-lg bg-surface border-l border-border shadow-xl z-50 flex flex-col">
+      <aside
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="story-drawer-title"
+        className="fixed inset-y-0 right-0 w-full max-w-lg bg-surface border-l border-border shadow-xl z-50 flex flex-col"
+      >
         <div className="h-14 border-b border-border flex items-center justify-between px-5 flex-shrink-0 bg-surface">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-text-secondary">故事简报</span>
+            <span id="story-drawer-title" className="text-sm font-medium text-text-secondary">
+              故事简报
+            </span>
           </div>
           <div className="flex items-center gap-1">
             <button
+              type="button"
               onClick={() => handleCopy(briefText)}
-              className="p-1.5 rounded-md hover:bg-surface-subtle text-text-secondary hover:text-text-primary transition-colors"
+              className="p-1.5 rounded-md hover:bg-surface-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 text-text-secondary hover:text-text-primary transition-colors"
               aria-label="复制简报"
               title="复制简报"
             >
               <Copy className="w-4 h-4" />
             </button>
             <button
+              ref={closeButtonRef}
+              type="button"
               onClick={onClose}
-              className="p-1.5 rounded-md hover:bg-surface-subtle text-text-secondary hover:text-text-primary transition-colors"
+              className="p-1.5 rounded-md hover:bg-surface-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 text-text-secondary hover:text-text-primary transition-colors"
               aria-label="关闭"
               title="关闭"
             >
@@ -220,11 +256,12 @@ export function StoryDrawer({ story, onClose }: StoryDrawerProps) {
                   className="group rounded-xl border border-border bg-surface-subtle/30 hover:bg-surface-subtle transition-colors"
                 >
                   <button
+                    type="button"
                     onClick={(e) => {
                       e.stopPropagation();
                       setSelectedArticle(article);
                     }}
-                    className="flex items-start gap-3 text-left w-full p-3"
+                    className="flex items-start gap-3 text-left w-full p-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 rounded-xl"
                   >
                     <div className="flex-1 min-w-0">
                       <p className="text-sm text-text-primary group-hover:text-accent transition-colors line-clamp-2">
@@ -254,17 +291,27 @@ export function StoryDrawer({ story, onClose }: StoryDrawerProps) {
             <section className="border-t border-border pt-5">
               <h3 className="text-xs font-semibold uppercase tracking-wider text-text-tertiary mb-3 flex items-center gap-1.5">
                 <Diff className="w-4 h-4" />
-                来源差异
+                来源差异对比
               </h3>
+
+              <div className="flex items-center gap-2 text-xs text-text-tertiary mb-4">
+                <span>{diff.articles.length} 个来源视角</span>
+                {diff.common_words.length > 0 && (
+                  <>
+                    <span className="text-text-tertiary">·</span>
+                    <span>{diff.common_words.length} 个共同关键词</span>
+                  </>
+                )}
+              </div>
 
               {diff.common_words.length > 0 && (
                 <div className="mb-4">
-                  <span className="text-xs text-text-tertiary">共同关注：</span>
-                  <div className="flex flex-wrap gap-1.5 mt-1.5">
+                  <p className="text-xs font-medium text-text-secondary mb-2">共同关注</p>
+                  <div className="flex flex-wrap gap-1.5">
                     {diff.common_words.map((word) => (
                       <span
                         key={word}
-                        className="text-xs px-2 py-0.5 bg-surface-subtle border border-border rounded-md text-text-secondary"
+                        className="text-xs px-2 py-0.5 bg-accent/10 border border-accent/20 rounded-md text-accent"
                       >
                         {word}
                       </span>
@@ -273,23 +320,50 @@ export function StoryDrawer({ story, onClose }: StoryDrawerProps) {
                 </div>
               )}
 
+              {diff.unique_phrases.length > 0 && (
+                <div className="mb-4">
+                  <p className="text-xs font-medium text-text-secondary mb-2">差异视角</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {diff.unique_phrases.map((phrase) => (
+                      <span
+                        key={phrase}
+                        className="text-xs px-2 py-0.5 bg-amber/10 border border-amber/20 rounded-md text-amber"
+                      >
+                        {phrase}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <p className="text-xs font-medium text-text-secondary mb-2">各来源报道</p>
               <ul className="space-y-3">
-                {diff.articles.map((article) => (
+                {diff.articles.map((article, idx) => (
                   <li
                     key={article.article_id}
-                    className="text-sm border-l-2 border-border pl-3 py-0.5"
+                    className="text-sm rounded-xl border border-border bg-surface-subtle/30 pl-4 py-3"
                   >
-                    <div className="font-medium text-text-primary">
-                      {article.title}
+                    <div className="flex items-start gap-2">
+                      <span className="flex-shrink-0 w-5 h-5 rounded-full bg-surface border border-border flex items-center justify-center text-[10px] font-semibold text-text-tertiary tabular-nums">
+                        {idx + 1}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-text-primary line-clamp-2">
+                          {article.title}
+                        </p>
+                        <p className="text-xs text-text-tertiary mt-0.5">
+                          {article.source_name}
+                          {article.published_at && (
+                            <span className="ml-2">{formatRelativeTime(article.published_at)}</span>
+                          )}
+                        </p>
+                        {article.summary && (
+                          <p className="text-xs text-text-secondary mt-1.5 leading-relaxed line-clamp-3">
+                            {article.summary}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                    <div className="text-xs text-text-tertiary mt-0.5">
-                      {article.source_name}
-                    </div>
-                    {article.summary && (
-                      <p className="text-xs text-text-secondary mt-1.5 leading-relaxed line-clamp-3">
-                        {article.summary}
-                      </p>
-                    )}
                   </li>
                 ))}
               </ul>

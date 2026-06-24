@@ -1,9 +1,5 @@
 import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { fetchSource as getSource } from "../api/sources";
-import { listArticles } from "../api/articles";
-import { listFetchLogs } from "../api/fetchLogs";
 import { StoryCard } from "../components/StoryCard";
 import { StoryDrawer } from "../components/StoryDrawer";
 import { ArticleDrawer } from "../components/ArticleDrawer";
@@ -24,19 +20,12 @@ import {
 import { toast } from "sonner";
 import { api } from "../api/client";
 import { formatRelativeTime, formatStoryStatus } from "../lib/format";
-
-function useSourceStories(sourceId: number) {
-  return useQuery({
-    queryKey: ["stories", "by-source", sourceId],
-    queryFn: async () => {
-      const { data } = await api.get<Story[]>(`/stories/by-source/${sourceId}`, {
-        params: { limit: 50 },
-      });
-      return data;
-    },
-    enabled: !!sourceId,
-  });
-}
+import {
+  useSourceDetail,
+  useSourceStories,
+  useSourceArticles,
+  useSourceFetchLogs,
+} from "../hooks/useSourceDetail";
 
 export function SourceDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -49,23 +38,11 @@ export function SourceDetailPage() {
     isLoading: sourceLoading,
     isError: sourceError,
     error: sourceErrorObj,
-  } = useQuery({
-    queryKey: ["source", sourceId],
-    queryFn: () => getSource(sourceId),
-    enabled: !!sourceId,
-  });
+  } = useSourceDetail(sourceId);
 
-  const { data: articles = [], isLoading: articlesLoading } = useQuery({
-    queryKey: ["articles", { source_id: sourceId, limit: 30 }],
-    queryFn: () => listArticles({ source_id: sourceId, limit: 30 }),
-    enabled: !!sourceId,
-  });
+  const { data: articles = [], isLoading: articlesLoading } = useSourceArticles(sourceId);
 
-  const { data: logs = [] } = useQuery({
-    queryKey: ["fetch-logs", { source_id: sourceId, limit: 10 }],
-    queryFn: () => listFetchLogs({ source_id: sourceId, limit: 10 }),
-    enabled: !!sourceId,
-  });
+  const { data: logs = [] } = useSourceFetchLogs(sourceId);
 
   const { data: stories = [], isLoading: storiesLoading } = useSourceStories(sourceId);
 

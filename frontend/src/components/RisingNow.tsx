@@ -19,10 +19,12 @@ export function RisingNow({ stories, onStoryClick }: RisingNowProps) {
       <SectionHeader title="正在升温" icon={Zap} />
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {stories.map((story) => (
-          <article
+          <button
             key={story.id}
+            type="button"
             onClick={() => onStoryClick(story)}
-            className="group cursor-pointer flex items-start gap-3 bg-surface border border-border rounded-xl p-3 transition-all duration-200 hover:shadow-sm hover:border-accent/20"
+            aria-label={`打开升温报道：${displayStoryTitle(story)}`}
+            className="group w-full text-left flex items-start gap-3 bg-surface border border-border rounded-xl p-3 transition-all duration-200 hover:shadow-sm hover:border-accent/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
           >
             <div
               className={clsx(
@@ -57,7 +59,7 @@ export function RisingNow({ stories, onStoryClick }: RisingNowProps) {
                 <span className="tabular-nums">{story.heat_score.toFixed(1)}</span>
               </div>
             </div>
-          </article>
+          </button>
         ))}
       </div>
     </section>

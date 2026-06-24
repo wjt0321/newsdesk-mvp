@@ -5,7 +5,6 @@ import {
   useMutation,
   useQueryClient,
 } from "@tanstack/react-query";
-import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import {
   listSources,
   createSource,
@@ -15,7 +14,9 @@ import {
   listSourceHealth,
 } from "../api/sources";
 import { formatRelativeTime } from "../lib/format";
+import { badgeClassName, type StatusTone } from "../lib/statusStyles";
 import type { Source } from "../api/types";
+import { PageEmpty, PageError, PageLoading } from "../components/ui/PageStatus";
 import {
   Loader2,
   RefreshCw,
@@ -27,8 +28,11 @@ import {
   Clock,
   CheckCircle2,
   PauseCircle,
-  RotateCcw,
   Trash2,
+  ChevronUp,
+  Filter,
+  ExternalLink,
+  Search,
 } from "lucide-react";
 import { toast } from "sonner";
 import clsx from "clsx";
@@ -49,27 +53,27 @@ function getSourceHealth(source: Source): Health {
 
 const HEALTH_CONFIG: Record<
   Health,
-  { label: string; icon: typeof CheckCircle2; className: string }
+  { label: string; icon: typeof CheckCircle2; tone: StatusTone }
 > = {
   healthy: {
     label: "健康",
     icon: CheckCircle2,
-    className: "bg-green-100 text-green-700",
+    tone: "success",
   },
   delayed: {
     label: "延迟",
     icon: Clock,
-    className: "bg-amber-100 text-amber-700",
+    tone: "warning",
   },
   failing: {
     label: "故障",
     icon: AlertCircle,
-    className: "bg-red-100 text-red-700",
+    tone: "danger",
   },
   paused: {
     label: "已暂停",
     icon: PauseCircle,
-    className: "bg-gray-100 text-text-secondary",
+    tone: "neutral",
   },
 };
 
@@ -100,33 +104,7 @@ function formatCategory(category: string): string {
   return CATEGORY_MAP[category.toLowerCase()] || category;
 }
 
-type SortKey = "name" | "type" | "category" | null;
-
-function SortHeader({
-  label,
-  active,
-  desc,
-  onClick,
-}: {
-  label: string;
-  active: boolean;
-  desc: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className="inline-flex items-center gap-1 hover:text-accent"
-    >
-      {label}
-      {active ? (
-        desc ? <ArrowDown className="w-3 h-3" /> : <ArrowUp className="w-3 h-3" />
-      ) : (
-        <ArrowUpDown className="w-3 h-3 text-text-secondary" />
-      )}
-    </button>
-  );
-}
+type HealthFilter = "all" | Health;
 
 export function SourcesPage() {
   const queryClient = useQueryClient();
@@ -148,34 +126,29 @@ export function SourcesPage() {
 
   const healthBySourceId = new Map(healthData.map((h) => [h.id, h]));
 
-  const [sortKey, setSortKey] = useState<SortKey>(null);
-  const [sortDesc, setSortDesc] = useState(false);
+  const [healthFilter, setHealthFilter] = useState<HealthFilter>("all");
+  const [searchText, setSearchText] = useState("");
+  const [showAddForm, setShowAddForm] = useState(false);
 
-  const sortedSources = useMemo(() => {
-    if (!sortKey) return sources;
-    const sorted = [...sources].sort((a, b) => {
-      const aVal = String(a[sortKey]).toLowerCase();
-      const bVal = String(b[sortKey]).toLowerCase();
-      if (aVal < bVal) return sortDesc ? 1 : -1;
-      if (aVal > bVal) return sortDesc ? -1 : 1;
-      return 0;
-    });
-    return sorted;
-  }, [sources, sortKey, sortDesc]);
+  const filteredSources = useMemo(() => {
+    let result = sources;
 
-  function handleSort(key: SortKey) {
-    if (sortKey === key) {
-      if (sortDesc) {
-        setSortKey(null);
-        setSortDesc(false);
-      } else {
-        setSortDesc(true);
-      }
-    } else {
-      setSortKey(key);
-      setSortDesc(false);
+    if (healthFilter !== "all") {
+      result = result.filter((s) => getSourceHealth(s) === healthFilter);
     }
-  }
+
+    if (searchText.trim()) {
+      const q = searchText.toLowerCase();
+      result = result.filter(
+        (s) =>
+          s.name.toLowerCase().includes(q) ||
+          s.url.toLowerCase().includes(q) ||
+          s.category.toLowerCase().includes(q)
+      );
+    }
+
+    return result;
+  }, [sources, healthFilter, searchText]);
 
   const [form, setForm] = useState({
     name: "",
@@ -206,6 +179,7 @@ export function SourcesPage() {
         language: "zh",
         region: "CN",
       });
+      setShowAddForm(false);
     },
     onError: (err: unknown) => {
       const message = getErrorMessage(err);
@@ -296,102 +270,136 @@ export function SourcesPage() {
     queryClient.invalidateQueries({ queryKey: ["source-health"] });
   }
 
+  const healthCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: sources.length };
+    for (const s of sources) {
+      const h = getSourceHealth(s);
+      counts[h] = (counts[h] || 0) + 1;
+    }
+    return counts;
+  }, [sources]);
+
+  const activeFilterCount = healthFilter !== "all" || searchText.trim().length > 0;
+
   return (
     <div className="max-w-6xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div>
+          <p className="text-xs font-medium uppercase tracking-wider text-text-tertiary mb-1">
+            来源管理
+          </p>
           <h2 className="text-2xl font-semibold">来源</h2>
-          <p className="text-sm text-text-secondary">
+          <p className="text-sm text-text-secondary mt-1">
             {sources.length} 个来源
+            {activeFilterCount && (
+              <span className="text-accent ml-1">
+                · 已筛选 {filteredSources.length} 个
+              </span>
+            )}
           </p>
         </div>
+        <button
+          type="button"
+          onClick={() => setShowAddForm((v) => !v)}
+          className={clsx(
+            "inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl border transition-colors",
+            showAddForm
+              ? "bg-accent text-white border-accent hover:bg-accent/90"
+              : "bg-surface border-border text-text-primary hover:border-accent hover:text-accent"
+          )}
+        >
+          {showAddForm ? <ChevronUp className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+          {showAddForm ? "收起" : "添加来源"}
+        </button>
       </div>
 
-      <form
-        onSubmit={handleSubmit}
-        className="bg-surface border border-border rounded-xl p-4 mb-6"
-      >
-        <div className="flex items-center gap-2 mb-4">
-          <Plus className="w-4 h-4 text-accent" />
-          <h3 className="text-sm font-semibold">添加来源</h3>
-        </div>
-        <div className="space-y-3">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <input
-              type="text"
-              placeholder="名称"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              className="px-3 py-2 text-sm bg-background border border-border rounded-lg outline-none focus:border-accent"
-              required
-            />
-            <input
-              type="url"
-              placeholder="链接"
-              value={form.url}
-              onChange={(e) => setForm({ ...form, url: e.target.value })}
-              className="px-3 py-2 text-sm bg-background border border-border rounded-lg outline-none focus:border-accent"
-              required
-            />
-            <input
-              type="text"
-              placeholder="分类"
-              value={form.category}
-              onChange={(e) => setForm({ ...form, category: e.target.value })}
-              className="px-3 py-2 text-sm bg-background border border-border rounded-lg outline-none focus:border-accent"
-            />
-            <select
-              value={form.type}
-              onChange={(e) => setForm({ ...form, type: e.target.value })}
-              className="px-3 py-2 text-sm bg-background border border-border rounded-lg outline-none focus:border-accent"
-            >
-              <option value="rss">rss</option>
-              <option value="rsshub">rsshub</option>
-            </select>
-
-            {showAdvanced && (
-              <>
-                <input
-                  type="text"
-                  placeholder="语言"
-                  value={form.language}
-                  onChange={(e) => setForm({ ...form, language: e.target.value })}
-                  className="px-3 py-2 text-sm bg-background border border-border rounded-lg outline-none focus:border-accent"
-                />
-                <input
-                  type="text"
-                  placeholder="地区"
-                  value={form.region}
-                  onChange={(e) => setForm({ ...form, region: e.target.value })}
-                  className="px-3 py-2 text-sm bg-background border border-border rounded-lg outline-none focus:border-accent"
-                />
-              </>
-            )}
+      {showAddForm && (
+        <form
+          onSubmit={handleSubmit}
+          className="bg-surface border border-border rounded-2xl p-5 mb-6"
+        >
+          <div className="flex items-center gap-2 mb-4">
+            <Plus className="w-4 h-4 text-accent" />
+            <h3 className="text-sm font-semibold">添加来源</h3>
           </div>
+          <div className="space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <input
+                type="text"
+                placeholder="名称"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                className="px-3 py-2 text-sm bg-background border border-border rounded-lg outline-none focus:border-accent transition-colors"
+                required
+              />
+              <input
+                type="url"
+                placeholder="链接"
+                value={form.url}
+                onChange={(e) => setForm({ ...form, url: e.target.value })}
+                className="px-3 py-2 text-sm bg-background border border-border rounded-lg outline-none focus:border-accent transition-colors"
+                required
+              />
+              <input
+                type="text"
+                placeholder="分类"
+                value={form.category}
+                onChange={(e) => setForm({ ...form, category: e.target.value })}
+                className="px-3 py-2 text-sm bg-background border border-border rounded-lg outline-none focus:border-accent transition-colors"
+              />
+              <select
+                value={form.type}
+                onChange={(e) => setForm({ ...form, type: e.target.value })}
+                className="px-3 py-2 text-sm bg-background border border-border rounded-lg outline-none focus:border-accent transition-colors"
+              >
+                <option value="rss">rss</option>
+                <option value="rsshub">rsshub</option>
+              </select>
 
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-            <button
-              type="button"
-              onClick={() => setShowAdvanced((v) => !v)}
-              className="text-xs text-text-secondary hover:text-accent underline"
-            >
-              {showAdvanced ? "隐藏高级选项" : "高级选项"}
-            </button>
-            <button
-              type="submit"
-              disabled={createMutation.isPending}
-              className="inline-flex items-center justify-center gap-1.5 px-4 py-2 text-sm font-medium bg-accent text-white rounded-lg hover:bg-accent/90 transition-colors disabled:opacity-50 w-full sm:w-auto"
-            >
-              {createMutation.isPending ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Plus className="w-4 h-4" />
+              {showAdvanced && (
+                <>
+                  <input
+                    type="text"
+                    placeholder="语言"
+                    value={form.language}
+                    onChange={(e) => setForm({ ...form, language: e.target.value })}
+                    className="px-3 py-2 text-sm bg-background border border-border rounded-lg outline-none focus:border-accent transition-colors"
+                  />
+                  <input
+                    type="text"
+                    placeholder="地区"
+                    value={form.region}
+                    onChange={(e) => setForm({ ...form, region: e.target.value })}
+                    className="px-3 py-2 text-sm bg-background border border-border rounded-lg outline-none focus:border-accent transition-colors"
+                  />
+                </>
               )}
-              添加来源
-            </button>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={() => setShowAdvanced((v) => !v)}
+                className="text-xs text-text-secondary hover:text-accent underline"
+              >
+                {showAdvanced ? "隐藏高级选项" : "高级选项"}
+              </button>
+              <button
+                type="submit"
+                disabled={createMutation.isPending}
+                className="inline-flex items-center justify-center gap-1.5 px-4 py-2 text-sm font-medium bg-accent text-white rounded-lg hover:bg-accent/90 transition-colors disabled:opacity-50 w-full sm:w-auto"
+              >
+                {createMutation.isPending ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Plus className="w-4 h-4" />
+                )}
+                添加来源
+              </button>
+            </div>
           </div>
-        </div>
-      </form>
+        </form>
+      )}
 
       {mutationError && (
         <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6 flex items-start gap-3">
@@ -410,258 +418,274 @@ export function SourcesPage() {
       )}
 
       {isLoading ? (
-        <div className="flex items-center justify-center py-20 text-text-secondary">
-          <Loader2 className="w-5 h-5 animate-spin mr-2" />
-          正在加载来源...
-        </div>
+        <PageLoading label="正在加载来源..." />
       ) : isError ? (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
-          <AlertCircle className="w-8 h-8 text-red-600 mx-auto mb-3" />
-          <h3 className="text-lg font-semibold text-red-800 mb-1">
-            加载来源失败
-          </h3>
-          <p className="text-sm text-red-700 mb-4">
-            {error instanceof Error ? error.message : "出了点问题，请重试。"}
-          </p>
-          <button
-            onClick={handleRetry}
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-          >
-            <RotateCcw className="w-4 h-4" />
-            重试
-          </button>
-        </div>
+        <PageError
+          title="加载来源失败"
+          description={error instanceof Error ? error.message : "出了点问题，请重试。"}
+          onRetry={handleRetry}
+        />
       ) : sources.length > 0 ? (
-        <div className="bg-surface border border-border rounded-xl overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-background border-b border-border">
-                <tr>
-                  <th className="text-left font-medium text-text-secondary px-4 py-3">
-                    <SortHeader label="名称" active={sortKey === "name"} desc={sortDesc} onClick={() => handleSort("name")} />
-                  </th>
-                  <th className="text-left font-medium text-text-secondary px-4 py-3">
-                    <SortHeader label="类型" active={sortKey === "type"} desc={sortDesc} onClick={() => handleSort("type")} />
-                  </th>
-                  <th className="text-left font-medium text-text-secondary px-4 py-3">
-                    <SortHeader label="分类" active={sortKey === "category"} desc={sortDesc} onClick={() => handleSort("category")} />
-                  </th>
-                  <th className="text-left font-medium text-text-secondary px-4 py-3">链接</th>
-                  <th className="text-left font-medium text-text-secondary px-4 py-3">状态</th>
-                  <th className="text-left font-medium text-text-secondary px-4 py-3">健康度</th>
-                  <th className="text-left font-medium text-text-secondary px-4 py-3">上次抓取</th>
-                  <th className="text-center font-medium text-text-secondary px-4 py-3">错误</th>
-                  <th className="text-left font-medium text-text-secondary px-4 py-3">最后错误</th>
-                  <th className="text-right font-medium text-text-secondary px-4 py-3">操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sortedSources.map((source) => {
-                  const health = getSourceHealth(source);
-                  const healthCfg = HEALTH_CONFIG[health];
-                  const HealthIcon = healthCfg.icon;
-                  const sourceHealth = healthBySourceId.get(source.id);
-                  const latestError = sourceHealth?.latest_error;
-                  const isFetching =
-                    fetchMutation.isPending && fetchMutation.variables === source.id;
-                  const isToggling =
-                    toggleMutation.isPending &&
-                    toggleMutation.variables?.id === source.id;
-                  const isDeleting =
-                    deleteMutation.isPending &&
-                    deleteMutation.variables === source.id;
+        <>
+          <div className="mb-5 space-y-3">
+            <div className="flex items-center gap-2">
+              <Search className="w-4 h-4 text-text-tertiary" />
+              <input
+                type="text"
+                placeholder="搜索名称、链接或分类..."
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+                className="flex-1 px-3 py-2 text-sm bg-surface border border-border rounded-lg outline-none focus:border-accent transition-colors"
+              />
+              {searchText && (
+                <button
+                  onClick={() => setSearchText("")}
+                  className="text-xs text-text-secondary hover:text-accent"
+                >
+                  清除
+                </button>
+              )}
+            </div>
 
+            <div className="flex items-center gap-2 flex-wrap">
+              <Filter className="w-3.5 h-3.5 text-text-tertiary" />
+              {(Object.entries(HEALTH_CONFIG) as [Health, typeof HEALTH_CONFIG[Health]][]).map(
+                ([key, cfg]) => {
+                  const count = healthCounts[key] || 0;
+                  if (count === 0) return null;
                   return (
-                    <tr
-                      key={source.id}
-                      className="border-b border-border last:border-b-0 hover:bg-background/50 transition-colors"
+                    <button
+                      key={key}
+                      onClick={() => setHealthFilter(healthFilter === key ? "all" : key)}
+                      className={clsx(
+                        "inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border transition-colors",
+                        healthFilter === key
+                          ? "border-accent bg-accent/10 text-accent"
+                          : "border-border bg-surface text-text-secondary hover:border-accent/50 hover:text-accent"
+                      )}
                     >
-                      <td className="px-4 py-3 font-medium">
-                        <div className="flex items-center gap-2">
-                          <Radio className="w-4 h-4 text-text-secondary flex-shrink-0" />
-                          <Link
-                            to={`/sources/${source.id}`}
-                            className="truncate max-w-[180px] hover:text-accent hover:underline"
-                            title={source.name}
-                          >
-                            {source.name}
-                          </Link>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-text-secondary capitalize">
-                        {source.type === "rsshub" ? "RSSHub" : source.type.toUpperCase()}
-                      </td>
-                      <td className="px-4 py-3 text-text-secondary capitalize">
-                        {editingCategoryId === source.id ? (
-                          <form
-                            onSubmit={(e) => {
-                              e.preventDefault();
-                              categoryMutation.mutate({
-                                id: source.id,
-                                category: categoryInput.trim() || source.category,
-                              });
-                            }}
-                            className="flex items-center gap-1"
-                          >
-                            <input
-                              type="text"
-                              value={categoryInput}
-                              onChange={(e) => setCategoryInput(e.target.value)}
-                              className="w-24 px-1.5 py-1 text-xs bg-background border border-accent rounded outline-none"
-                              autoFocus
-                              onBlur={() => {
-                                if (!categoryMutation.isPending) {
-                                  categoryMutation.mutate({
-                                    id: source.id,
-                                    category: categoryInput.trim() || source.category,
-                                  });
-                                }
-                                setEditingCategoryId(null);
-                              }}
-                            />
-                          </form>
-                        ) : (
-                          <button
-                            onClick={() => {
-                              setEditingCategoryId(source.id);
-                              setCategoryInput(source.category);
-                            }}
-                            className="hover:text-accent hover:underline"
-                            title="点击编辑分类"
-                          >
-                            {formatCategory(source.category)}
-                          </button>
+                      <cfg.icon className="w-3 h-3" />
+                      {cfg.label}
+                      <span className="tabular-nums">{count}</span>
+                    </button>
+                  );
+                }
+              )}
+              {activeFilterCount && (
+                <button
+                  onClick={() => {
+                    setHealthFilter("all");
+                    setSearchText("");
+                  }}
+                  className="text-xs text-text-secondary hover:text-accent underline"
+                >
+                  重置筛选
+                </button>
+              )}
+            </div>
+          </div>
+
+          {filteredSources.length === 0 ? (
+            <PageEmpty
+              icon={Filter}
+              title="没有匹配的来源"
+              description="尝试调整筛选条件或搜索关键词。"
+            />
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {filteredSources.map((source) => {
+                const health = getSourceHealth(source);
+                const healthCfg = HEALTH_CONFIG[health];
+                const HealthIcon = healthCfg.icon;
+                const sourceHealth = healthBySourceId.get(source.id);
+                const latestError = sourceHealth?.latest_error;
+                const isFetching =
+                  fetchMutation.isPending && fetchMutation.variables === source.id;
+                const isToggling =
+                  toggleMutation.isPending &&
+                  toggleMutation.variables?.id === source.id;
+                const isDeleting =
+                  deleteMutation.isPending &&
+                  deleteMutation.variables === source.id;
+
+                return (
+                  <div
+                    key={source.id}
+                    className="bg-surface border border-border rounded-xl p-4 hover:shadow-sm hover:border-accent/20 transition-all group"
+                  >
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <Link
+                        to={`/sources/${source.id}`}
+                        className="font-medium text-sm text-text-primary hover:text-accent transition-colors line-clamp-1 min-w-0 flex-1"
+                        title={source.name}
+                      >
+                        {source.name}
+                      </Link>
+                      <span
+                        className={clsx(
+                          "inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full flex-shrink-0",
+                          badgeClassName(healthCfg.tone)
                         )}
-                      </td>
-                      <td className="px-4 py-3">
+                      >
+                        <HealthIcon className="w-3 h-3" />
+                        {healthCfg.label}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2 text-xs text-text-secondary mb-2">
+                      <span className="capitalize">
+                        {source.type === "rsshub" ? "RSSHub" : source.type.toUpperCase()}
+                      </span>
+                      <span className="text-text-tertiary">·</span>
+                      {editingCategoryId === source.id ? (
+                        <form
+                          onSubmit={(e) => {
+                            e.preventDefault();
+                            categoryMutation.mutate({
+                              id: source.id,
+                              category: categoryInput.trim() || source.category,
+                            });
+                          }}
+                          className="flex items-center gap-1"
+                        >
+                          <input
+                            type="text"
+                            value={categoryInput}
+                            onChange={(e) => setCategoryInput(e.target.value)}
+                            className="w-16 px-1.5 py-0.5 text-xs bg-background border border-accent rounded outline-none"
+                            autoFocus
+                            onBlur={() => {
+                              if (!categoryMutation.isPending) {
+                                categoryMutation.mutate({
+                                  id: source.id,
+                                  category: categoryInput.trim() || source.category,
+                                });
+                              }
+                              setEditingCategoryId(null);
+                            }}
+                          />
+                        </form>
+                      ) : (
                         <button
-                          onClick={() => openExternal(source.url)}
-                          className="text-left text-accent hover:underline truncate max-w-[200px] inline-block"
-                          title={source.url}
+                          onClick={() => {
+                            setEditingCategoryId(source.id);
+                            setCategoryInput(source.category);
+                          }}
+                          className="hover:text-accent hover:underline"
+                          title="点击编辑分类"
                         >
-                          {source.url}
+                          {formatCategory(source.category)}
                         </button>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span
-                          className={clsx(
-                            "inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full",
-                            source.enabled
-                              ? "bg-green-100 text-green-700"
-                              : "bg-gray-100 text-text-secondary"
-                          )}
-                        >
-                          <span className="w-1.5 h-1.5 rounded-full bg-current" />
-                          {source.enabled ? "已启用" : "已禁用"}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span
-                          className={clsx(
-                            "inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full",
-                            healthCfg.className
-                          )}
-                        >
-                          <HealthIcon className="w-3 h-3" />
-                          {healthCfg.label}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-text-secondary">
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2 text-[11px] text-text-tertiary mb-3">
+                      <span className="tabular-nums">
                         {source.last_fetched_at
                           ? formatRelativeTime(source.last_fetched_at)
-                          : "从未"}
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <span
-                          className={clsx(
-                            "text-xs font-medium px-2 py-0.5 rounded-full",
-                            source.error_count > 0
-                              ? "bg-red-100 text-red-700"
-                              : "bg-gray-100 text-text-secondary"
-                          )}
-                        >
-                          {source.error_count}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-text-secondary">
-                        {latestError ? (
-                          <span className="text-xs text-red-600 truncate max-w-[200px] inline-block" title={latestError}>
-                            {latestError}
+                          : "从未抓取"}
+                      </span>
+                      {source.error_count > 0 && (
+                        <>
+                          <span className="text-text-tertiary">·</span>
+                          <span className="text-red-600 tabular-nums">
+                            {source.error_count} 错误
                           </span>
-                        ) : (
-                          <span className="text-xs text-text-secondary">-</span>
+                        </>
+                      )}
+                    </div>
+
+                    {latestError && (
+                      <p className="text-[11px] text-red-600 line-clamp-1 mb-3" title={latestError}>
+                        {latestError}
+                      </p>
+                    )}
+
+                    <div className="flex items-center gap-1.5 pt-2 border-t border-border">
+                      <button
+                        onClick={() => openExternal(source.url)}
+                        className="inline-flex items-center gap-1 px-2 py-1 text-[11px] text-text-secondary hover:text-accent rounded-md hover:bg-surface-subtle transition-colors"
+                        title="打开链接"
+                      >
+                        <ExternalLink className="w-3 h-3" />
+                      </button>
+                      <button
+                        onClick={() =>
+                          toggleMutation.mutate({
+                            id: source.id,
+                            enabled: source.enabled,
+                          })
+                        }
+                        disabled={isToggling}
+                        className={clsx(
+                          "inline-flex items-center gap-1 px-2 py-1 text-[11px] rounded-md transition-colors disabled:opacity-50",
+                          source.enabled
+                            ? "text-text-secondary hover:text-red-600 hover:bg-red-50"
+                            : "text-green-600 hover:bg-green-50"
                         )}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <div className="inline-flex items-center gap-2">
-                          <button
-                            onClick={() =>
-                              toggleMutation.mutate({
-                                id: source.id,
-                                enabled: source.enabled,
-                              })
-                            }
-                            disabled={isToggling}
-                            className={clsx(
-                              "inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border transition-colors disabled:opacity-50",
-                              source.enabled
-                                ? "border-border bg-background text-text-secondary hover:text-red-600 hover:border-red-200"
-                                : "border-green-200 bg-green-50 text-green-700 hover:bg-green-100"
-                            )}
-                            title={source.enabled ? "禁用" : "启用"}
-                          >
-                            {isToggling ? (
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            ) : source.enabled ? (
-                              <PowerOff className="w-3.5 h-3.5" />
-                            ) : (
-                              <Power className="w-3.5 h-3.5" />
-                            )}
-                            <span className="hidden sm:inline">
-                              {source.enabled ? "禁用" : "启用"}
-                            </span>
-                          </button>
-                          <button
-                            onClick={() => fetchMutation.mutate(source.id)}
-                            disabled={isFetching}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-background border border-border hover:border-accent hover:text-accent transition-colors disabled:opacity-50"
-                            title="立即抓取"
-                          >
-                            <RefreshCw
-                              className={clsx("w-3.5 h-3.5", isFetching && "animate-spin")}
-                            />
-                            <span className="hidden sm:inline">立即抓取</span>
-                          </button>
-                          <button
-                            onClick={() => {
-                              if (window.confirm(`确定要删除来源 "${source.name}" 吗？相关文章与抓取日志也会被一并删除。`)) {
-                                deleteMutation.mutate(source.id);
-                              }
-                            }}
-                            disabled={isDeleting}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-background border border-border text-red-600 hover:border-red-200 hover:bg-red-50 transition-colors disabled:opacity-50"
-                            title="删除"
-                          >
-                            {isDeleting ? (
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            ) : (
-                              <Trash2 className="w-3.5 h-3.5" />
-                            )}
-                            <span className="hidden sm:inline">删除</span>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
+                        title={source.enabled ? "禁用" : "启用"}
+                      >
+                        {isToggling ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : source.enabled ? (
+                          <PowerOff className="w-3 h-3" />
+                        ) : (
+                          <Power className="w-3 h-3" />
+                        )}
+                        <span className="hidden sm:inline">
+                          {source.enabled ? "禁用" : "启用"}
+                        </span>
+                      </button>
+                      <button
+                        onClick={() => fetchMutation.mutate(source.id)}
+                        disabled={isFetching}
+                        className="inline-flex items-center gap-1 px-2 py-1 text-[11px] text-text-secondary hover:text-accent rounded-md hover:bg-surface-subtle transition-colors disabled:opacity-50"
+                        title="立即抓取"
+                      >
+                        <RefreshCw
+                          className={clsx("w-3 h-3", isFetching && "animate-spin")}
+                        />
+                        <span className="hidden sm:inline">抓取</span>
+                      </button>
+                      <div className="flex-1" />
+                      <button
+                        onClick={() => {
+                          if (window.confirm(`确定要删除来源 "${source.name}" 吗？相关文章与抓取日志也会被一并删除。`)) {
+                            deleteMutation.mutate(source.id);
+                          }
+                        }}
+                        disabled={isDeleting}
+                        className="inline-flex items-center gap-1 px-2 py-1 text-[11px] text-text-secondary hover:text-red-600 rounded-md hover:bg-red-50 transition-colors disabled:opacity-50 opacity-0 group-hover:opacity-100"
+                        title="删除"
+                      >
+                        {isDeleting ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <Trash2 className="w-3 h-3" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </>
       ) : (
-        <div className="bg-surface border border-border rounded-xl p-8 text-center text-text-secondary">
-          暂无来源。
-        </div>
+        <PageEmpty
+          icon={Radio}
+          title="暂无来源"
+          description="先添加 RSS 或 RSSHub 来源，这里会逐步形成你的来源目录。"
+        >
+          <button
+            type="button"
+            onClick={() => setShowAddForm(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-accent text-white rounded-lg hover:bg-accent/90 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            添加来源
+          </button>
+        </PageEmpty>
       )}
     </div>
   );

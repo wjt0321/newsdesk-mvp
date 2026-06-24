@@ -9,6 +9,7 @@ import { SourcesPage } from "./pages/SourcesPage";
 import { SourceDetailPage } from "./pages/SourceDetailPage";
 import { SourceHealthPage } from "./pages/SourceHealthPage";
 import { BriefingPage } from "./pages/BriefingPage";
+import { SearchPage } from "./pages/SearchPage";
 
 function App() {
   return (
@@ -23,6 +24,7 @@ function App() {
           <Route path="sources/:id" element={<SourceDetailPage />} />
           <Route path="source-health" element={<SourceHealthPage />} />
           <Route path="briefing" element={<BriefingPage />} />
+          <Route path="search" element={<SearchPage />} />
         </Route>
       </Routes>
       <Toaster position="bottom-right" richColors closeButton />

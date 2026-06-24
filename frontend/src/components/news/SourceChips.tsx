@@ -41,21 +41,38 @@ export function SourceChips({
 
   return (
     <div className={`flex items-center gap-1.5 flex-wrap ${className ?? ""}`}>
-      {visible.map((item) => (
-        <span
-          key={item.id ? `${item.id}-${item.name}` : item.name}
-          onClick={(e) => handleClick(e, item.id)}
-          className={`
-            inline-flex items-center rounded-md bg-surface-subtle border border-border
-            text-text-secondary truncate max-w-[140px]
-            ${size === "sm" ? "text-[11px] px-1.5 py-0.5" : "text-xs px-2 py-1"}
-            ${clickable && item.id ? "cursor-pointer hover:bg-accent/10 hover:text-accent hover:border-accent/30 transition-colors" : ""}
-          `}
-          title={item.name}
-        >
-          {item.name}
-        </span>
-      ))}
+      {visible.map((item) =>
+        clickable && item.id ? (
+          <button
+            type="button"
+            key={`${item.id}-${item.name}`}
+            onClick={(e) => handleClick(e, item.id)}
+            className={`
+              inline-flex items-center rounded-md bg-surface-subtle border border-border
+              text-text-secondary truncate max-w-[140px]
+              ${size === "sm" ? "text-[11px] px-1.5 py-0.5" : "text-xs px-2 py-1"}
+              cursor-pointer hover:bg-accent/10 hover:text-accent hover:border-accent/30
+              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 transition-colors
+            `}
+            aria-label={`打开来源：${item.name}`}
+            title={item.name}
+          >
+            {item.name}
+          </button>
+        ) : (
+          <span
+            key={item.id ? `${item.id}-${item.name}` : item.name}
+            className={`
+              inline-flex items-center rounded-md bg-surface-subtle border border-border
+              text-text-secondary truncate max-w-[140px]
+              ${size === "sm" ? "text-[11px] px-1.5 py-0.5" : "text-xs px-2 py-1"}
+            `}
+            title={item.name}
+          >
+            {item.name}
+          </span>
+        )
+      )}
       {remaining > 0 && (
         <span className="text-[11px] text-text-tertiary">+{remaining}</span>
       )}

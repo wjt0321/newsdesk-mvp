@@ -1,9 +1,9 @@
-import { useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { DashboardContext } from "../hooks/useDashboardContext";
+import { useDashboardUrlState } from "../hooks/useDashboardUrlState";
 
 export function DashboardProvider({ children }: { children: ReactNode }) {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [hours, setHours] = useState<number | null>(24);
+  const { searchQuery, setSearchQuery, hours, setHours } = useDashboardUrlState();
 
   return (
     <DashboardContext.Provider
