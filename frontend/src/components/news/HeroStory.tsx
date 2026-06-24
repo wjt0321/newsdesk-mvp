@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { Story } from "../../api/types";
-import { formatStoryStatus } from "../../lib/format";
+import { displayStorySubtitle, displayStoryTitle, formatStoryStatus } from "../../lib/format";
 import { SourceChips } from "./SourceChips";
 import { SignalGroup } from "./SignalBadge";
 import clsx from "clsx";
@@ -27,7 +27,7 @@ export function HeroStory({ story, onClick }: HeroStoryProps) {
         <>
           <img
             src={coverImage}
-            alt={story.short_title || story.canonical_title}
+            alt={displayStoryTitle(story)}
             className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.02]"
             loading="eager"
             onError={() => setFallback(true)}
@@ -62,12 +62,12 @@ function StoryContent({ story, variant }: { story: Story; variant: "overlay" | "
           textPrimary
         )}
       >
-        {story.short_title || story.canonical_title}
+        {displayStoryTitle(story)}
       </h3>
 
-      {story.short_title && story.short_title !== story.canonical_title && (
+      {displayStorySubtitle(story) && (
         <p className={clsx("text-sm line-clamp-2", textSecondary)}>
-          {story.canonical_title}
+          {displayStorySubtitle(story)}
         </p>
       )}
 

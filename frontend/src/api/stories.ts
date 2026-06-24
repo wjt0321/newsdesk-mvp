@@ -5,10 +5,15 @@ export interface StoryListParams {
   limit?: number;
   offset?: number;
   hours?: number;
+  q?: string;
 }
 
 export function listStories(params: StoryListParams = {}) {
   return api.get<Story[]>("/stories", { params }).then((res) => res.data);
+}
+
+export function searchStories(q: string, params: Omit<StoryListParams, "q"> = {}) {
+  return listStories({ ...params, q });
 }
 
 export function getStory(id: number) {

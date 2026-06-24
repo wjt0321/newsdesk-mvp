@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { listStories } from "../api/stories";
+import { displayStoryTitle } from "../lib/format";
 import type { Story } from "../api/types";
 import { HeroStory } from "../components/news/HeroStory";
 import { SecondaryStory } from "../components/news/SecondaryStory";
@@ -76,15 +77,6 @@ function scoreForTodaySort(story: Story): number {
   return score;
 }
 
-function storyMatchesQuery(story: Story, query: string) {
-  if (!query.trim()) return true;
-  const q = query.toLowerCase();
-  return (
-    story.canonical_title.toLowerCase().includes(q) ||
-    (story.short_title && story.short_title.toLowerCase().includes(q))
-  );
-}
-
 function sourceDominanceWarning(stories: Story[]): { source: string; ratio: number } | null {
   if (stories.length === 0) return null;
   const counts = new Map<string, number>();
@@ -102,20 +94,24 @@ export function TodayPage() {
   const [selectedStory, setSelectedStory] = useState<Story | null>(null);
   const queryClient = useQueryClient();
 
+  const trimmedQuery = searchQuery.trim();
+
   const {
     data: stories = [],
     isLoading,
     isError,
     error,
   } = useQuery({
-    queryKey: ["stories", { limit: 100, hours }],
-    queryFn: () => listStories({ limit: 100, hours: hours ?? undefined }),
+    queryKey: ["stories", { limit: 100, hours, q: trimmedQuery }],
+    queryFn: () =>
+      listStories({
+        limit: 100,
+        hours: hours ?? undefined,
+        q: trimmedQuery || undefined,
+      }),
   });
 
-  const filteredStories = useMemo(
-    () => stories.filter((story) => storyMatchesQuery(story, searchQuery)),
-    [stories, searchQuery]
-  );
+  const filteredStories = stories;
 
   const sortedByQuality = useMemo(
     () => [...filteredStories].sort((a, b) => scoreForTodaySort(b) - scoreForTodaySort(a)),
@@ -296,7 +292,7 @@ export function TodayPage() {
                     className="w-full text-left group"
                   >
                     <p className="text-sm font-medium text-text-primary line-clamp-2 group-hover:text-accent transition-colors">
-                      {story.short_title || story.canonical_title}
+                      {displayStoryTitle(story)}
                     </p>
                     <p className="text-xs text-text-tertiary mt-1">
                       {story.needs_review ? "需审核" : `置信度 ${(story.confidence * 100).toFixed(0)}%`}

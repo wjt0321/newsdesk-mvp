@@ -1,7 +1,7 @@
 import type { Story } from "../api/types";
 import { Zap, ArrowUpRight } from "lucide-react";
 import clsx from "clsx";
-import { formatStoryStatus } from "../lib/format";
+import { displayStoryTitle, formatStoryStatus } from "../lib/format";
 import { SectionHeader } from "./ui/SectionHeader";
 
 interface RisingNowProps {
@@ -38,7 +38,7 @@ export function RisingNow({ stories, onStoryClick }: RisingNowProps) {
             </div>
             <div className="flex-1 min-w-0">
               <h3 className="font-medium text-text-primary text-sm leading-snug line-clamp-2 group-hover:text-accent transition-colors">
-                {story.short_title || story.canonical_title}
+                {displayStoryTitle(story)}
               </h3>
               <div className="flex items-center gap-3 mt-1.5 text-xs text-text-tertiary">
                 <span

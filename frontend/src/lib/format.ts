@@ -54,3 +54,26 @@ export function formatStoryStatus(status: string): string {
       return status;
   }
 }
+
+import type { Story, Article } from "../api/types";
+
+export function displayStoryTitle(story: Story): string {
+  return story.clean_title || story.short_title || story.canonical_title;
+}
+
+export function displayStorySubtitle(story: Story): string | null {
+  const subtitle = story.short_title || story.canonical_title;
+  const title = displayStoryTitle(story);
+  if (subtitle && subtitle !== title) {
+    return subtitle;
+  }
+  return null;
+}
+
+export function displayArticleTitle(article: Article): string {
+  return article.clean_title || article.title;
+}
+
+export function displayArticleSummary(article: Article): string | null {
+  return article.clean_summary || article.summary_raw || article.content_text?.slice(0, 240) || null;
+}

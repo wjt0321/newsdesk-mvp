@@ -74,6 +74,9 @@ export interface Article {
   hash_url: string;
   hash_title: string;
   status: string;
+  clean_title?: string | null;
+  clean_summary?: string | null;
+  clean_content_text?: string | null;
 }
 
 export interface FetchLog {
@@ -91,6 +94,8 @@ export interface Story {
   id: number;
   canonical_title: string;
   short_title: string | null;
+  clean_title?: string | null;
+  clean_summary?: string | null;
   first_seen_at: string;
   last_updated_at: string;
   source_count: number;

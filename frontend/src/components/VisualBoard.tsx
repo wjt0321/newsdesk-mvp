@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { Story } from "../api/types";
 import { ImageOff, Aperture } from "lucide-react";
-import { formatRelativeTime } from "../lib/format";
+import { displayStoryTitle, formatRelativeTime } from "../lib/format";
 import { SourceChips } from "./news/SourceChips";
 import { SignalGroup } from "./news/SignalBadge";
 import clsx from "clsx";
@@ -60,7 +60,7 @@ function VisualCard({ story, onStoryClick }: VisualCardProps) {
         <div className="relative aspect-[16/10]">
           <img
             src={coverImage}
-            alt={story.short_title || story.canonical_title}
+            alt={displayStoryTitle(story)}
             className="absolute inset-0 w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-500"
             loading="lazy"
             onError={() => setFallback(true)}
@@ -90,7 +90,7 @@ function VisualContent({ story, variant }: { story: Story; variant: "overlay" | 
           textPrimary
         )}
       >
-        {story.short_title || story.canonical_title}
+        {displayStoryTitle(story)}
       </h3>
       <SourceChips
         names={story.source_names}

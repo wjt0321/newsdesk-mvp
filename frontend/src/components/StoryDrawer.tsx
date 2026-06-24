@@ -13,7 +13,13 @@ import {
   Copy,
 } from "lucide-react";
 import clsx from "clsx";
-import { formatRelativeTime, formatStoryStatus } from "../lib/format";
+import {
+  displayArticleSummary,
+  displayArticleTitle,
+  displayStoryTitle,
+  formatRelativeTime,
+  formatStoryStatus,
+} from "../lib/format";
 import { openExternal } from "../lib/openExternal";
 import { listSources } from "../api/sources";
 import { api } from "../api/client";
@@ -79,8 +85,10 @@ export function StoryDrawer({ story, onClose }: StoryDrawerProps) {
 
   const summary = useMemo(() => {
     if (!story) return "";
-    // Prefer a synthesized summary if any article has one; otherwise transparent placeholder.
+    // Prefer a cleaned summary from any article; otherwise transparent placeholder.
     const candidate =
+      story.clean_summary ||
+      story.articles.find((a) => a.clean_summary)?.clean_summary ||
       story.articles.find((a) => a.summary_raw)?.summary_raw ||
       story.articles.find((a) => a.content_text)?.content_text?.slice(0, 240);
     return candidate || generatePlaceholderSummary(story);
@@ -93,7 +101,7 @@ export function StoryDrawer({ story, onClose }: StoryDrawerProps) {
 
   if (!story) return null;
 
-  const briefText = `${story.short_title || story.canonical_title}\n来源：${story.source_names.join(
+  const briefText = `${displayStoryTitle(story)}\n来源：${story.source_names.join(
     "、"
   )}\n更新：${formatRelativeTime(story.last_updated_at)}`;
 
@@ -137,12 +145,12 @@ export function StoryDrawer({ story, onClose }: StoryDrawerProps) {
             </div>
 
             <h2 className="text-2xl font-semibold text-text-primary leading-tight text-balance">
-              {story.canonical_title}
+              {displayStoryTitle(story)}
             </h2>
 
-            {story.short_title && story.short_title !== story.canonical_title && (
+            {story.clean_summary && (
               <p className="text-base text-text-secondary leading-relaxed">
-                {story.short_title}
+                {story.clean_summary}
               </p>
             )}
 
@@ -220,8 +228,13 @@ export function StoryDrawer({ story, onClose }: StoryDrawerProps) {
                     <ExternalLink className="w-4 h-4 text-text-tertiary mt-0.5 flex-shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm text-text-primary group-hover:text-accent transition-colors line-clamp-2">
-                        {article.title}
+                        {displayArticleTitle(article)}
                       </p>
+                      {displayArticleSummary(article) && (
+                        <p className="text-xs text-text-secondary mt-1 line-clamp-2">
+                          {displayArticleSummary(article)}
+                        </p>
+                      )}
                       <div className="flex items-center gap-2 mt-1 text-xs text-text-tertiary">
                         <span className="font-medium text-text-secondary">
                           {sourceNameById.get(article.source_id) || `来源 #${article.source_id}`}

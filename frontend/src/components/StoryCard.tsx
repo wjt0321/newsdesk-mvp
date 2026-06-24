@@ -1,6 +1,11 @@
 import type { Story } from "../api/types";
 import clsx from "clsx";
-import { formatRelativeTime, formatStoryStatus } from "../lib/format";
+import {
+  displayStorySubtitle,
+  displayStoryTitle,
+  formatRelativeTime,
+  formatStoryStatus,
+} from "../lib/format";
 import { SourceChips } from "./news/SourceChips";
 import { SignalGroup } from "./news/SignalBadge";
 
@@ -25,11 +30,11 @@ export function StoryCard({ story, onClick, variant = "default" }: StoryCardProp
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
             <h3 className="font-medium text-text-primary text-sm leading-snug line-clamp-2 group-hover:text-accent transition-colors">
-              {story.short_title || story.canonical_title}
+              {displayStoryTitle(story)}
             </h3>
-            {story.short_title && story.short_title !== story.canonical_title && (
+            {displayStorySubtitle(story) && (
               <p className="text-xs text-text-secondary mt-0.5 line-clamp-1">
-                {story.canonical_title}
+                {displayStorySubtitle(story)}
               </p>
             )}
           </div>
@@ -61,11 +66,11 @@ export function StoryCard({ story, onClick, variant = "default" }: StoryCardProp
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
           <h3 className="font-semibold text-text-primary leading-snug line-clamp-2 group-hover:text-accent transition-colors">
-            {story.short_title || story.canonical_title}
+            {displayStoryTitle(story)}
           </h3>
-          {story.short_title && story.short_title !== story.canonical_title && (
+          {displayStorySubtitle(story) && (
             <p className="text-sm text-text-secondary mt-1 line-clamp-1">
-              {story.canonical_title}
+              {displayStorySubtitle(story)}
             </p>
           )}
         </div>

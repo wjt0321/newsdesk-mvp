@@ -15,15 +15,6 @@ type SortOption =
 
 const STATUS_OPTIONS = ["all", "new", "developing", "stable"] as const;
 
-function storyMatchesQuery(story: Story, query: string) {
-  if (!query.trim()) return true;
-  const q = query.toLowerCase();
-  return (
-    story.canonical_title.toLowerCase().includes(q) ||
-    (story.short_title && story.short_title.toLowerCase().includes(q))
-  );
-}
-
 export function StoriesPage() {
   const { searchQuery, hours } = useDashboardContext();
   const [selectedStory, setSelectedStory] = useState<Story | null>(null);
@@ -31,14 +22,21 @@ export function StoriesPage() {
   const [sortBy, setSortBy] = useState<SortOption>("heat_desc");
   const queryClient = useQueryClient();
 
+  const trimmedQuery = searchQuery.trim();
+
   const {
     data: stories = [],
     isLoading,
     isError,
     error,
   } = useQuery({
-    queryKey: ["stories", { limit: 200, hours }],
-    queryFn: () => listStories({ limit: 200, hours: hours ?? undefined }),
+    queryKey: ["stories", { limit: 200, hours, q: trimmedQuery }],
+    queryFn: () =>
+      listStories({
+        limit: 200,
+        hours: hours ?? undefined,
+        q: trimmedQuery || undefined,
+      }),
   });
 
   function handleRetry() {
@@ -46,7 +44,7 @@ export function StoriesPage() {
   }
 
   const filteredStories = useMemo(() => {
-    let result = stories.filter((story) => storyMatchesQuery(story, searchQuery));
+    let result = [...stories];
 
     if (status !== "all") {
       result = result.filter((s) => s.status === status);
@@ -69,7 +67,7 @@ export function StoriesPage() {
     });
 
     return result;
-  }, [stories, searchQuery, status, sortBy]);
+  }, [stories, status, sortBy]);
 
   return (
     <div className="max-w-4xl mx-auto">

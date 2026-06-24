@@ -100,6 +100,9 @@ class ArticleRead(ArticleBase):
     hash_url: str
     hash_title: str
     status: str = "active"
+    clean_title: Optional[str] = None
+    clean_summary: Optional[str] = None
+    clean_content_text: Optional[str] = None
 
     @field_validator("*", mode="before")
     @classmethod
@@ -196,6 +199,8 @@ class StoryRead(BaseModel):
     id: int
     canonical_title: str
     short_title: Optional[str] = None
+    clean_title: Optional[str] = None
+    clean_summary: Optional[str] = None
     first_seen_at: datetime
     last_updated_at: datetime
     source_count: int

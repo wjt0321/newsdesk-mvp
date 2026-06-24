@@ -1,5 +1,10 @@
 import type { Story } from "../../api/types";
-import { formatRelativeTime, formatStoryStatus } from "../../lib/format";
+import {
+  displayStorySubtitle,
+  displayStoryTitle,
+  formatRelativeTime,
+  formatStoryStatus,
+} from "../../lib/format";
 import { SourceChips } from "./SourceChips";
 import { SignalGroup } from "./SignalBadge";
 import clsx from "clsx";
@@ -22,14 +27,14 @@ export function SecondaryStory({ story, onClick }: SecondaryStoryProps) {
     >
       <div className="flex items-start justify-between gap-3 mb-2">
         <h4 className="font-semibold text-text-primary leading-snug line-clamp-2 text-balance flex-1">
-          {story.short_title || story.canonical_title}
+          {displayStoryTitle(story)}
         </h4>
         <StatusPill story={story} />
       </div>
 
-      {story.short_title && story.short_title !== story.canonical_title && (
+      {displayStorySubtitle(story) && (
         <p className="text-sm text-text-secondary line-clamp-1 mb-2">
-          {story.canonical_title}
+          {displayStorySubtitle(story)}
         </p>
       )}
 
