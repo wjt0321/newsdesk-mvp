@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NewsDesk - 个人新闻情报聚合看板</title>
+  <meta name="description" content="NewsDesk 是从多个 RSS/API 来源自动抓取新闻并按事件聚合的桌面情报看板。" />
+  <style>
+    :root {
+      --bg: #f7f6f3;
+      --surface: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --accent: #2563eb;
+      --accent-hover: #1d4ed8;
+      --border: #e5e7eb;
+      --radius: 1rem;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+    header {
+      background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
+      color: #fff;
+      padding: 4rem 1.5rem 3rem;
+      text-align: center;
+    }
+    header h1 { font-size: 2.5rem; margin: 0 0 .5rem; }
+    header p { font-size: 1.125rem; color: #d1d5db; max-width: 640px; margin: 0 auto 1.5rem; }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: .5rem;
+      padding: .75rem 1.5rem;
+      border-radius: 9999px;
+      text-decoration: none;
+      font-weight: 600;
+      transition: transform .15s, background .15s;
+    }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); }
+    .btn-secondary { background: rgba(255,255,255,.1); color: #fff; border: 1px solid rgba(255,255,255,.2); }
+    .btn-secondary:hover { background: rgba(255,255,255,.2); }
+    .actions { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+    main { max-width: 960px; margin: 0 auto; padding: 3rem 1.5rem; }
+    section { margin-bottom: 3rem; }
+    h2 { font-size: 1.75rem; margin-bottom: 1rem; }
+    .screenshot {
+      border-radius: var(--radius);
+      box-shadow: 0 20px 40px rgba(0,0,0,.1);
+      overflow: hidden;
+      border: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .screenshot img { width: 100%; height: auto; display: block; }
+    .features {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1rem;
+    }
+    .feature {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+    }
+    .feature h3 { margin: 0 0 .5rem; font-size: 1.125rem; }
+    .feature p { margin: 0; color: var(--muted); font-size: .9375rem; }
+    .feature .icon { font-size: 1.5rem; margin-bottom: .5rem; }
+    footer {
+      text-align: center;
+      padding: 2rem 1.5rem;
+      color: var(--muted);
+      font-size: .875rem;
+      border-top: 1px solid var(--border);
+    }
+    code {
+      background: #f3f4f6;
+      padding: .2rem .4rem;
+      border-radius: .375rem;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>NewsDesk</h1>
+    <p>个人新闻情报聚合看板。自动抓取多源 RSS，按事件聚合成 Story，在桌面端以 Focus / Visual / Text / Rising 视图呈现。</p>
+    <div class="actions">
+      <a class="btn btn-primary" href="https://github.com/wjt0321/newsdesk-mvp/raw/main/frontend/src-tauri/target/release/bundle/nsis/NewsDesk_0.1.0_x64-setup.exe" download>⬇ 下载 Windows 安装包</a>
+      <a class="btn btn-secondary" href="https://github.com/wjt0321/newsdesk-mvp">查看 GitHub 仓库</a>
+    </div>
+  </header>
+
+  <main>
+    <section>
+      <div class="screenshot">
+        <img src="screenshots/newsdesk-today.png" alt="NewsDesk 今日情报截图" />
+      </div>
+    </section>
+
+    <section>
+      <h2>核心能力</h2>
+      <div class="features">
+        <div class="feature">
+          <div class="icon">📡</div>
+          <h3>多源聚合</h3>
+          <p>管理 RSS / RSSHub 来源，自动去重、相似度聚类，将多篇文章归为一个 Story。</p>
+        </div>
+        <div class="feature">
+          <div class="icon">🔥</div>
+          <h3>热度与状态</h3>
+          <p>根据来源数、文章数、更新时间计算 heat_score，自动标记 new / developing / stable。</p>
+        </div>
+        <div class="feature">
+          <div class="icon">🖼️</div>
+          <h3>分区看板</h3>
+          <p>今日重点、有图报道、正在升温、文字情报，让信息密度与可读性兼得。</p>
+        </div>
+        <div class="feature">
+          <div class="icon">🔍</div>
+          <h3>全文搜索</h3>
+          <p>支持按报道标题、摘要、来源名称实时搜索，结果即时呈现。</p>
+        </div>
+        <div class="feature">
+          <div class="icon">📰</div>
+          <h3>来源与文章详情</h3>
+          <p>来源页展示最近文章、进入的报道与抓取记录；文章可在应用内直接阅读。</p>
+        </div>
+        <div class="feature">
+          <div class="icon">🖥️</div>
+          <h3>桌面端封装</h3>
+          <p>基于 Tauri 2 的 Windows 安装包，系统托盘、后台驻留、一键抓取。</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>快速开始</h2>
+      <p>下载安装包后运行 <code>NewsDesk_0.1.0_x64-setup.exe</code>，安装完成即可使用。首次启动会自动建表并写入示例来源。</p>
+      <p>开发者可克隆仓库后分别启动后端与前端：</p>
+<pre style="background:#f3f4f6;padding:1rem;border-radius:.5rem;overflow:auto;"><code># 后端
+cd backend
+.venv/Scripts/python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+
+# 前端
+cd frontend
+npm install
+npm run dev
+</code></pre>
+    </section>
+  </main>
+
+  <footer>
+    <p>© 2026 NewsDesk MVP · <a href="https://github.com/wjt0321/newsdesk-mvp">GitHub</a></p>
+  </footer>
+</body>
+</html>

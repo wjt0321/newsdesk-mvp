@@ -2,11 +2,16 @@
 
 个人新闻情报聚合看板的最小可用版本（MVP）。从多个 RSS/API 来源自动抓取新闻，按标题相似度与 URL 去重聚合成 **Story（事件）**，并在 React 看板中以 Focus / Visual / Text / Rising 等视图呈现。Windows 桌面端基于 Tauri 2 封装，支持系统托盘、后台驻留与一键抓取。
 
+![NewsDesk 今日情报截图](./docs/screenshots/newsdesk-today.png)
+
+> 🌐 **在线展示页**：https://wjt0321.github.io/newsdesk-mvp  
+> ⬇️ **下载最新 Windows 安装包**：<a href="https://github.com/wjt0321/newsdesk-mvp/raw/main/frontend/src-tauri/target/release/bundle/nsis/NewsDesk_0.1.0_x64-setup.exe" download>NewsDesk_0.1.0_x64-setup.exe</a>
+
 ---
 
 ## 功能特性
 
-- **来源管理**：增删改查 RSS/API 来源，支持启用/禁用、抓取间隔、暂停/恢复。
+- **来源管理**：增删改查 RSS/API 来源，支持启用/禁用、抓取间隔、暂停/恢复；来源详情页展示最近文章、进入的报道与抓取记录。
 - **自动抓取**：APScheduler 每分钟检查启用来源并按 `fetch_interval_minutes` 触发抓取。
 - **去重聚类**：
   - 硬去重：`canonical_url` / `hash_url` / `hash_title` 相同即合并。
@@ -17,6 +22,9 @@
 - **AI 摘要（可选基础设施）**：已预留 OpenAI-compatible provider、缓存、限额与失败降级链路；默认关闭。未配置 API Key 时使用 placeholder，不代表真实摘要质量已验证。
 - **今日简报**：`GET /api/briefing` 聚合过去 24 小时高热度 Story，前端 `/briefing` 页面支持一键复制纯文本。
 - **多源差异**：`GET /api/stories/{id}/diff` 对比同一 Story 下不同来源的报道标题与摘要，StoryDrawer 中直接展示。
+- **内容清洗与全文搜索**：自动清洗标题、摘要和正文；前端支持按报道、来源、主题实时搜索（`/api/stories?q=`、`/api/articles?q=`）。
+- **来源与文章详情**：来源 chip 可点击进入 SourceDetail；StoryDrawer 中的文章列表可在应用内打开 ArticleDrawer 阅读。
+- **分区首页**：今日重点 / 有图报道 / 正在升温 / 文字情报，右侧显示来源健康摘要与来源动态。
 - **桌面壳**：Tauri v2 + Rust，系统托盘、启动/停止 Python backend sidecar、最小化到托盘。
 
 ---
